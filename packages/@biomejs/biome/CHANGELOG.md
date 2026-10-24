@@ -1,5 +1,22 @@
 # @biomejs/biome
 
+## 2.6.4
+
+### Patch Changes
+
+- [#12472](https://github.com/biomejs/biome/pull/12472) [`efd16bd`](https://github.com/biomejs/biome/commit/efd16bd44d84ad0580d59d27bba6843323761b42) Thanks [@dyc3](https://github.com/dyc3)! - Added the new nursery rule [`useWhileLoopCondition`](https://biomejs.dev/linter/rules/use-while-loop-condition/), which reports loops such as `while (true)` and `for (;;)` that start with an `if` statement containing only a `break`, and moves that condition into the `while` statement.
+  
+  ```js
+  while (true) {
+    if (!hasMore()) {
+      break;
+    } // reported
+    processNext();
+  }
+  ```
+
+- [#12649](https://github.com/biomejs/biome/pull/12649) [`343c8ca`](https://github.com/biomejs/biome/commit/343c8ca9cc718d76717b334338cc7eff94b0d426) Thanks [@JamBalaya56562](https://github.com/JamBalaya56562)! - Fixed [#12643](https://github.com/biomejs/biome/issues/12643): Biome now migrates the Prettier option `bracketSpacing` when it is set inside `overrides`. The option is migrated to the `formatter.bracketSpacing` of the matching Biome override.
+
 ## 2.6.3
 
 ### Patch Changes
