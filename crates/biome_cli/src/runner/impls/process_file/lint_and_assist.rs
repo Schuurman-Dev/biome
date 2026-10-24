@@ -11,7 +11,8 @@ use biome_console::{ConsoleExt, markup};
 use biome_diagnostics::{Diagnostic, DiagnosticExt, Error, PrintDiagnostic, Severity};
 use biome_service::WorkspaceError;
 use biome_service::workspace::{
-    FeaturesSupported, FileContent, FileFeaturesResult, ProcessFileParams, SupportsFeatureParams,
+    BaselineMode, FeaturesSupported, FileContent, FileFeaturesResult, ProcessFileParams,
+    SupportsFeatureParams,
 };
 use tracing::info;
 
@@ -68,6 +69,7 @@ impl ProcessFile for LintAssistProcessFile {
                 diagnostic_level,
                 enforce_assist: execution.should_enforce_assist(),
                 skip_parse_errors: execution.should_skip_parse_errors(),
+                baseline_mode: BaselineMode::Apply,
             })
             .with_file_path_and_code(
                 workspace_file.path.to_string(),
@@ -207,6 +209,7 @@ impl ProcessFile for LintAssistProcessFile {
             diagnostic_level: cli_options.diagnostic_level,
             enforce_assist: execution.should_enforce_assist(),
             skip_parse_errors: execution.should_skip_parse_errors(),
+            baseline_mode: BaselineMode::Apply,
         })?;
         let source = result.output.as_deref().unwrap_or(content);
         console.append_raw(source);

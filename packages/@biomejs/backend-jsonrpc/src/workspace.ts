@@ -14258,6 +14258,7 @@ export type Category =
 	| "suppressions/unknownAction"
 	| "suppressions/unused"
 	| "suppressions/incorrect"
+	| "suppressions/unusedBaseline"
 	| "args/fileNotFound"
 	| "flags/invalid"
 	| "semanticTests";
@@ -14889,6 +14890,10 @@ export interface PullDiagnosticsResult {
 	warnings: number;
 }
 export interface ProcessFileParams {
+	/**
+	 * How the project's baseline file is used for this file.
+	 */
+	baselineMode?: BaselineMode;
 	categories: RuleCategories;
 	content: FileContent;
 	diagnosticLevel: Severity;
@@ -14907,6 +14912,10 @@ export interface ProcessFileParams {
 	write: boolean;
 }
 /**
+ * How the baseline file (`biome-baseline.json`) is used when processing a file.
+ */
+export type BaselineMode = "apply" | { record: { rules?: string[] } } | "prune";
+/**
  * Which fixes should be applied during the analyzing phase
  */
 export type FixFileMode =
@@ -14915,6 +14924,11 @@ export type FixFileMode =
 	| "applySuppressions";
 export interface ProcessFileResult {
 	appliedFixes: number;
+	/**
+	 * Error-level lint violations per rule, before the baseline was applied.
+	 * Only set when [BaselineMode] isn't [BaselineMode::Apply].
+	 */
+	baselineViolations?: Record<string, number>;
 	diagnostics: Diagnostic[];
 	errors: number;
 	formatWithErrorsDisabled: boolean;

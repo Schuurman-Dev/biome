@@ -11,8 +11,8 @@ use biome_console::{ConsoleExt, markup};
 use biome_diagnostics::{Diagnostic, DiagnosticExt, Error, PrintDiagnostic, Severity, category};
 use biome_service::WorkspaceError;
 use biome_service::workspace::{
-    FeaturesBuilder, FeaturesSupported, FileContent, FileFeaturesResult, ProcessFileParams,
-    SupportsFeatureParams,
+    BaselineMode, FeaturesBuilder, FeaturesSupported, FileContent, FileFeaturesResult,
+    ProcessFileParams, SupportsFeatureParams,
 };
 use tracing::debug;
 
@@ -49,6 +49,7 @@ impl ProcessFile for FormatProcessFile {
                 diagnostic_level,
                 enforce_assist: false,
                 skip_parse_errors: execution.should_skip_parse_errors(),
+                baseline_mode: BaselineMode::Apply,
             })
             .with_file_path_and_code(workspace_file.path.to_string(), category!("format"))?;
 
@@ -180,6 +181,7 @@ impl ProcessFile for FormatProcessFile {
                 diagnostic_level: cli_options.diagnostic_level,
                 enforce_assist: false,
                 skip_parse_errors: execution.should_skip_parse_errors(),
+                baseline_mode: BaselineMode::Apply,
             })?;
             let source = result.output.as_deref().unwrap_or(content);
             print_stdin_diagnostics(console, cli_options, biome_path, source, result.diagnostics);

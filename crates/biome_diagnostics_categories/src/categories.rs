@@ -822,6 +822,7 @@ define_categories! {
     "suppressions/unknownAction",
     "suppressions/unused",
     "suppressions/incorrect",
+    "suppressions/unusedBaseline",
     // Used in tests and examples
     "args/fileNotFound",
     "flags/invalid",
