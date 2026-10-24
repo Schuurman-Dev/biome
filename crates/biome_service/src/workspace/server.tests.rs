@@ -1298,6 +1298,7 @@ fn process_file_is_stateless_and_reports_diagnostics_for_final_output() {
             diagnostic_level: Severity::Hint,
             enforce_assist: false,
             skip_parse_errors: false,
+            baseline_mode: BaselineMode::Apply,
         })
         .unwrap();
 
@@ -1472,6 +1473,7 @@ fn process_file_preserves_embedded_content_after_formatting() {
             diagnostic_level: Severity::Hint,
             enforce_assist: false,
             skip_parse_errors: false,
+            baseline_mode: BaselineMode::Apply,
         })
         .unwrap();
 
@@ -1543,6 +1545,7 @@ fn process_file_reports_syntax_errors_for_formatted_output() {
             diagnostic_level: Severity::Hint,
             enforce_assist: false,
             skip_parse_errors: false,
+            baseline_mode: BaselineMode::Apply,
         })
         .unwrap();
 
@@ -1611,6 +1614,7 @@ fn process_file_reports_syntax_errors_added_by_formatting() {
             diagnostic_level: Severity::Hint,
             enforce_assist: false,
             skip_parse_errors: false,
+            baseline_mode: BaselineMode::Apply,
         })
         .unwrap();
 
@@ -1678,6 +1682,7 @@ fn process_html_file_with_syntax_category(
             diagnostic_level: Severity::Hint,
             enforce_assist: false,
             skip_parse_errors: false,
+            baseline_mode: BaselineMode::Apply,
         })
         .unwrap()
 }

@@ -1,9 +1,13 @@
 use super::{document::Document, *};
 use crate::Watcher;
+use crate::baseline::{
+    BASELINE_FILE_NAME, Baseline, ProjectBaseline, RuleCounts, baselined_rule, count_violations,
+};
 use crate::configuration::{LoadedConfiguration, ProjectScanComputer, read_config};
 use crate::db::{DbReadGuard, DbState, WorkspaceDb};
 use crate::diagnostics::{
-    FileTooLarge, NoIgnoreFileFound, TailwindStylesheetNotFound, VcsDiagnostic,
+    BaselineNotReadable, FileTooLarge, NoIgnoreFileFound, TailwindStylesheetNotFound,
+    UnusedBaselineEntry, VcsDiagnostic,
 };
 use crate::embed::EmbedContent;
 #[cfg(feature = "lang_js")]
@@ -122,6 +126,9 @@ pub struct WorkspaceServer {
     /// Keeps all loaded plugins in memory, per project.
     #[cfg(feature = "plugins")]
     plugin_caches: Arc<HashMap<Utf8PathBuf, PluginCache>>,
+
+    /// The baseline file of each project that has one.
+    baselines: HashMap<ProjectKey, Arc<ProjectBaseline>>,
 
     /// Stores the document (text content + version number) associated with a URL
     documents: HashMap<Utf8PathBuf, Document, FxBuildHasher>,
@@ -474,6 +481,7 @@ impl WorkspaceServer {
             project_layout: Default::default(),
             #[cfg(feature = "plugins")]
             plugin_caches: Default::default(),
+            baselines: Default::default(),
             documents: Default::default(),
             search_provider,
             node_cache: Default::default(),
@@ -1718,12 +1726,48 @@ impl WorkspaceServerWithDb<'_> {
         Ok(Some(printed.into_code()))
     }
 
+    /// Loads the baseline file next to the root configuration, replacing the
+    /// one loaded before. Returns a diagnostic if the file exists but can't be used.
+    fn load_baseline(
+        &self,
+        project_key: ProjectKey,
+        workspace_directory: Option<&Utf8Path>,
+    ) -> Option<SerdeDiagnostic> {
+        let baselines = self.baselines.pin();
+        baselines.remove(&project_key);
+
+        let root = workspace_directory
+            .map(Utf8Path::to_path_buf)
+            .or_else(|| self.project_get_path(project_key))?;
+        let path = root.join(BASELINE_FILE_NAME);
+        if !self.fs.path_is_file(&path) {
+            return None;
+        }
+
+        let baseline = self
+            .fs
+            .read_file_from_path(&path)
+            .map_err(|_| "the file couldn't be read".to_string())
+            .and_then(|content| Baseline::parse(&content).map_err(|error| error.to_string()));
+        match baseline {
+            Ok(baseline) => {
+                baselines.insert(project_key, Arc::new(ProjectBaseline { root, baseline }));
+                None
+            }
+            Err(reason) => Some(SerdeDiagnostic::new(BaselineNotReadable {
+                path: path.to_string(),
+                reason,
+            })),
+        }
+    }
+
     fn pull_diagnostics_for_state(
         &self,
         params: PullDiagnosticsParams,
+        baseline_mode: &BaselineMode,
         state: &ProcessFileState,
         #[cfg(feature = "module_graph")] module_db: Rc<dyn ModuleDb>,
-    ) -> Result<PullDiagnosticsResult, WorkspaceError> {
+    ) -> Result<(PullDiagnosticsResult, Option<RuleCounts>), WorkspaceError> {
         let PullDiagnosticsParams {
             project_key,
             path,
@@ -1747,101 +1791,166 @@ impl WorkspaceServerWithDb<'_> {
             categories.is_lint() || categories.is_assist(),
         );
 
-        let (diagnostics, errors, warnings, infos, skipped_diagnostics) = if (categories.is_lint()
-            || categories.is_assist())
-            && let Some(lint) = capabilities.analyzer.lint
-        {
-            #[cfg(feature = "html_embeds")]
-            let embedded_data = state.collect_embedded_data();
-            let plugins = cfg_select! {
-                feature = "plugins" => {
-                    if categories.is_lint() {
-                        self.get_analyzer_plugins_for_project(
-                            settings.source_path().unwrap_or_default().as_path(),
-                            &settings.get_plugins_for_path(&path),
-                        )
-                        .map_err(WorkspaceError::plugin_errors)?
-                    } else {
-                        Vec::new()
-                    }
-                }
-                _ => Vec::new(),
-            };
-            let settings = self.settings_handle_with_query(
-                &settings,
-                EditorFeatures::default(),
-                query_context,
-            );
-            let LintResults {
-                diagnostics,
-                errors,
-                skipped_diagnostics,
-                warnings,
-                infos,
-            } = lint(LintParams {
-                parsed_source: state.parsed.clone(),
-                settings: &settings,
-                path: &path,
-                only: &only,
-                skip: &skip,
-                language: state.file_source,
-                categories,
-                workspace_db: state.db.clone(),
+        // The baseline needs every violation of the file, so diagnostics are
+        // only truncated once it has been applied.
+        let project_baseline = self.baselines.pin().get(&project_key).cloned();
+        let baseline_key = project_baseline
+            .as_ref()
+            .and_then(|baseline| baseline.relative_path(&path));
+        let has_baseline_entry = project_baseline
+            .as_ref()
+            .zip(baseline_key.as_deref())
+            .is_some_and(|(baseline, key)| baseline.baseline.contains_file(key));
+        let uses_baseline =
+            categories.is_lint() && (has_baseline_entry || *baseline_mode != BaselineMode::Apply);
+        let lint_max_diagnostics = if uses_baseline { None } else { max_diagnostics };
+
+        let (mut diagnostics, mut errors, warnings, infos, mut skipped_diagnostics) =
+            if (categories.is_lint() || categories.is_assist())
+                && let Some(lint) = capabilities.analyzer.lint
+            {
                 #[cfg(feature = "html_embeds")]
-                embedded_data,
-                #[cfg(feature = "module_graph")]
-                module_db,
-                project_layout: self.project_layout.clone(),
-                suppression_reason: None,
-                enabled_selectors: &enabled_rules,
-                pull_code_actions,
-                plugins,
-                working_directory: Some(working_directory.as_path()),
-                max_diagnostics,
-                diagnostic_level,
-                enforce_assist,
-            });
-            (diagnostics, errors, warnings, infos, skipped_diagnostics)
-        } else {
-            let mut diagnostics: Vec<_> = state
-                .parsed
-                .serde_diagnostics(&state.db)
-                .into_iter()
-                .filter(|diagnostic| diagnostic.severity() >= diagnostic_level)
-                .collect();
-            let mut errors = diagnostics
-                .iter()
-                .filter(|diagnostic| diagnostic.severity() >= Severity::Error)
-                .count();
-            for embedded_node in state.iter_snippets().blocking_formatting(state.file_source) {
-                let embedded_diagnostics: Vec<_> = embedded_node
+                let embedded_data = state.collect_embedded_data();
+                let plugins = cfg_select! {
+                    feature = "plugins" => {
+                        if categories.is_lint() {
+                            self.get_analyzer_plugins_for_project(
+                                settings.source_path().unwrap_or_default().as_path(),
+                                &settings.get_plugins_for_path(&path),
+                            )
+                            .map_err(WorkspaceError::plugin_errors)?
+                        } else {
+                            Vec::new()
+                        }
+                    }
+                    _ => Vec::new(),
+                };
+                let settings = self.settings_handle_with_query(
+                    &settings,
+                    EditorFeatures::default(),
+                    query_context,
+                );
+                let LintResults {
+                    diagnostics,
+                    errors,
+                    skipped_diagnostics,
+                    warnings,
+                    infos,
+                } = lint(LintParams {
+                    parsed_source: state.parsed.clone(),
+                    settings: &settings,
+                    path: &path,
+                    only: &only,
+                    skip: &skip,
+                    language: state.file_source,
+                    categories,
+                    workspace_db: state.db.clone(),
+                    #[cfg(feature = "html_embeds")]
+                    embedded_data,
+                    #[cfg(feature = "module_graph")]
+                    module_db,
+                    project_layout: self.project_layout.clone(),
+                    suppression_reason: None,
+                    enabled_selectors: &enabled_rules,
+                    pull_code_actions,
+                    plugins,
+                    working_directory: Some(working_directory.as_path()),
+                    max_diagnostics: lint_max_diagnostics,
+                    diagnostic_level,
+                    enforce_assist,
+                });
+                (diagnostics, errors, warnings, infos, skipped_diagnostics)
+            } else {
+                let mut diagnostics: Vec<_> = state
+                    .parsed
                     .serde_diagnostics(&state.db)
                     .into_iter()
                     .filter(|diagnostic| diagnostic.severity() >= diagnostic_level)
                     .collect();
-                errors += embedded_diagnostics
+                let mut errors = diagnostics
                     .iter()
                     .filter(|diagnostic| diagnostic.severity() >= Severity::Error)
                     .count();
-                diagnostics.extend(embedded_diagnostics);
-            }
-            (diagnostics, errors, 0, 0, 0)
-        };
+                for embedded_node in state.iter_snippets().blocking_formatting(state.file_source) {
+                    let embedded_diagnostics: Vec<_> = embedded_node
+                        .serde_diagnostics(&state.db)
+                        .into_iter()
+                        .filter(|diagnostic| diagnostic.severity() >= diagnostic_level)
+                        .collect();
+                    errors += embedded_diagnostics
+                        .iter()
+                        .filter(|diagnostic| diagnostic.severity() >= Severity::Error)
+                        .count();
+                    diagnostics.extend(embedded_diagnostics);
+                }
+                (diagnostics, errors, 0, 0, 0)
+            };
 
-        Ok(PullDiagnosticsResult {
-            diagnostics: diagnostics
-                .into_iter()
-                .map(|diagnostic| {
-                    let diagnostic = diagnostic.with_file_path(path.to_string());
-                    SerdeDiagnostic::new(diagnostic)
-                })
-                .collect(),
-            errors,
-            warnings,
-            infos,
-            parse_errors,
-            skipped_diagnostics: skipped_diagnostics.into(),
-        })
+        let mut baseline_violations = None;
+        if uses_baseline {
+            let violations = count_violations(diagnostics.iter());
+            let baseline = project_baseline
+                .as_ref()
+                .map(|baseline| &baseline.baseline)
+                .cloned()
+                .unwrap_or_default();
+            let outcome = baseline.evaluate_with_mode(
+                baseline_key.as_deref().unwrap_or_default(),
+                &violations,
+                baseline_mode,
+            );
+
+            if !outcome.suppressed.is_empty() {
+                let before = diagnostics.len();
+                diagnostics.retain(|diagnostic| {
+                    baselined_rule(diagnostic)
+                        .is_none_or(|rule| !outcome.suppressed.iter().any(|name| name == rule))
+                });
+                errors -= before - diagnostics.len();
+            }
+
+            // As with unused suppression comments, a partial run can't tell
+            // whether a recorded violation is gone.
+            if only.is_empty() && skip.is_empty() {
+                for (rule, count) in outcome.unused {
+                    diagnostics.push(SerdeDiagnostic::new(UnusedBaselineEntry {
+                        path: path.to_string(),
+                        rule,
+                        count,
+                    }));
+                    errors += 1;
+                }
+            }
+
+            if let Some(max_diagnostics) = max_diagnostics.map(|max| max as usize)
+                && diagnostics.len() > max_diagnostics
+            {
+                skipped_diagnostics += (diagnostics.len() - max_diagnostics) as u32;
+                diagnostics.truncate(max_diagnostics);
+            }
+
+            if *baseline_mode != BaselineMode::Apply {
+                baseline_violations = Some(violations);
+            }
+        }
+
+        Ok((
+            PullDiagnosticsResult {
+                diagnostics: diagnostics
+                    .into_iter()
+                    .map(|diagnostic| {
+                        let diagnostic = diagnostic.with_file_path(path.to_string());
+                        SerdeDiagnostic::new(diagnostic)
+                    })
+                    .collect(),
+                errors,
+                warnings,
+                infos,
+                parse_errors,
+                skipped_diagnostics: skipped_diagnostics.into(),
+            },
+            baseline_violations,
+        ))
     }
 
     #[cfg(feature = "plugins")]
@@ -2689,6 +2798,7 @@ impl WorkspaceServerWithDb<'_> {
     }
 
     fn remove_project(&self, project_key: ProjectKey) {
+        self.baselines.pin().remove(&project_key);
         self.db_state.remove_project(project_key);
     }
 
@@ -3056,6 +3166,12 @@ impl Workspace for WorkspaceServerWithDb<'_> {
                         };
                     }
                 }
+            }
+
+            if let Some(diagnostic) =
+                self.load_baseline(project_key, workspace_directory.as_deref())
+            {
+                diagnostics.push(diagnostic);
             }
 
             self.project_set_root_settings(project_key, settings);
@@ -3502,6 +3618,7 @@ impl Workspace for WorkspaceServerWithDb<'_> {
             diagnostic_level,
             enforce_assist,
             skip_parse_errors,
+            baseline_mode,
         } = params;
         let (_, settings, query) = {
             let db = self.get_db();
@@ -3601,14 +3718,17 @@ impl Workspace for WorkspaceServerWithDb<'_> {
             }
             let mut output = output.filter(|output| output != source);
 
-            let PullDiagnosticsResult {
-                diagnostics,
-                errors,
-                warnings,
-                infos,
-                parse_errors,
-                skipped_diagnostics,
-            } = self.pull_diagnostics_for_state(
+            let (
+                PullDiagnosticsResult {
+                    diagnostics,
+                    errors,
+                    warnings,
+                    infos,
+                    parse_errors,
+                    skipped_diagnostics,
+                },
+                baseline_violations,
+            ) = self.pull_diagnostics_for_state(
                 PullDiagnosticsParams {
                     project_key,
                     path: path.clone(),
@@ -3622,6 +3742,7 @@ impl Workspace for WorkspaceServerWithDb<'_> {
                     diagnostic_level,
                     enforce_assist,
                 },
+                &baseline_mode,
                 &state,
                 #[cfg(feature = "module_graph")]
                 module_db,
@@ -3667,6 +3788,7 @@ impl Workspace for WorkspaceServerWithDb<'_> {
                 parse_errors,
                 skipped_diagnostics,
                 skipped_suggested_fixes,
+                baseline_violations,
             })
         };
 
@@ -3717,10 +3839,12 @@ impl Workspace for WorkspaceServerWithDb<'_> {
         let module_db = state.db.rc_module_db();
         self.pull_diagnostics_for_state(
             params,
+            &BaselineMode::Apply,
             &state,
             #[cfg(feature = "module_graph")]
             module_db,
         )
+        .map(|(result, _)| result)
     }
 
     fn pull_diagnostics_and_actions(

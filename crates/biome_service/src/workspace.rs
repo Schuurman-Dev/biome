@@ -91,6 +91,7 @@ pub use crate::{
 #[cfg(feature = "schema")]
 use schemars::{Schema, SchemaGenerator};
 
+use crate::baseline::RuleCounts;
 use crate::module_graph::SerializedModuleInfo;
 use crate::settings::{EditorFeatures, ModuleGraphResolutionKind, SettingsWithEditor};
 pub use client::{TransportRequest, WorkspaceClient, WorkspaceTransport};
@@ -489,6 +490,8 @@ impl FileFeaturesResult {
     /// Sorted array of files that should not be processed no matter the cases.
     /// These files are handled by other tools.
     const PROTECTED_FILES: &'static [&'static str] = &[
+        // Biome, written by `--baseline`
+        crate::baseline::BASELINE_FILE_NAME,
         // Composer
         "composer.lock",
         // NPM
@@ -1097,6 +1100,25 @@ pub struct ProcessFileParams {
     pub diagnostic_level: Severity,
     pub enforce_assist: bool,
     pub skip_parse_errors: bool,
+    /// How the project's baseline file is used for this file.
+    #[serde(default)]
+    pub baseline_mode: BaselineMode,
+}
+
+/// How the baseline file (`biome-baseline.json`) is used when processing a file.
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub enum BaselineMode {
+    /// Suppresses the violations recorded in the baseline.
+    #[default]
+    Apply,
+    /// The baseline is being rewritten to the current violations, of the given
+    /// rules or all of them. The result carries the file's violations.
+    Record { rules: Option<Vec<String>> },
+    /// The baseline is being lowered to the current violations. The result
+    /// carries the file's violations.
+    Prune,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -1113,6 +1135,10 @@ pub struct ProcessFileResult {
     pub parse_errors: usize,
     pub skipped_diagnostics: u64,
     pub skipped_suggested_fixes: u32,
+    /// Error-level lint violations per rule, before the baseline was applied.
+    /// Only set when [BaselineMode] isn't [BaselineMode::Apply].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub baseline_violations: Option<RuleCounts>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

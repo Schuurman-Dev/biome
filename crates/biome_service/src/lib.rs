@@ -1,5 +1,6 @@
 #![deny(clippy::use_self)]
 
+pub mod baseline;
 pub mod configuration;
 pub mod db;
 pub mod diagnostics;

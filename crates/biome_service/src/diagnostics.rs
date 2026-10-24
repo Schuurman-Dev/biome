@@ -766,6 +766,38 @@ pub struct TailwindStylesheetNotFound {
     pub path: String,
 }
 
+#[derive(Debug, Diagnostic, Serialize, Deserialize)]
+#[diagnostic(
+    category = "configuration",
+    severity = Error,
+    message(
+        description = "Biome couldn't read the baseline file {path}: {reason}",
+        message("Biome couldn't read the baseline file "<Emphasis>{self.path}</Emphasis>": "{self.reason}),
+    )
+)]
+pub struct BaselineNotReadable {
+    #[location(resource)]
+    pub path: String,
+    pub reason: String,
+}
+
+#[derive(Debug, Diagnostic, Serialize, Deserialize)]
+#[diagnostic(
+    category = "suppressions/unusedBaseline",
+    severity = Error,
+    message(
+        description = "The baseline allows {count} more violation(s) of {rule} than this file has.",
+        message("The baseline allows "{self.count}" more violation(s) of "<Emphasis>{self.rule}</Emphasis>" than this file has."),
+    ),
+    advice = "Run the command again with --prune-baseline to remove baseline entries that no longer occur.",
+)]
+pub struct UnusedBaselineEntry {
+    #[location(resource)]
+    pub path: String,
+    pub rule: String,
+    pub count: u32,
+}
+
 #[cfg(feature = "plugins")]
 #[cfg_attr(feature = "plugins", derive(Debug, Serialize, Deserialize))]
 pub struct PluginErrors {

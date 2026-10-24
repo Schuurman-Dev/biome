@@ -8,7 +8,7 @@ use crate::runner::process_file::{
 };
 use biome_analyze::RuleCategoriesBuilder;
 use biome_diagnostics::{DiagnosticExt, Error, Severity};
-use biome_service::workspace::{FeaturesSupported, FileContent, ProcessFileParams};
+use biome_service::workspace::{BaselineMode, FeaturesSupported, FileContent, ProcessFileParams};
 use tracing::info;
 
 pub(crate) struct CheckProcessFile;
@@ -53,6 +53,7 @@ impl ProcessFile for CheckProcessFile {
                 diagnostic_level,
                 enforce_assist: execution.should_enforce_assist(),
                 skip_parse_errors: execution.should_skip_parse_errors(),
+                baseline_mode: BaselineMode::Apply,
             })
             .with_file_path_and_code(
                 workspace_file.path.to_string(),
