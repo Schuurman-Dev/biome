@@ -1,0 +1,58 @@
+---
+source: crates/biome_cli/tests/snap_test.rs
+expression: redactor(content)
+---
+## Command
+
+```shell
+biome lint '<TEMP_DIR>/baseline_err_when_baseline_is_malformed'
+```
+
+## `biome.json`
+
+```json
+{
+  "linter": {
+    "rules": {
+      "preset": "none",
+      "suspicious": { "noDebugger": "error", "noDoubleEquals": "warn" },
+      "complexity": { "noUselessCatch": "error" }
+    }
+  }
+}
+```
+
+## `a.js`
+
+```js
+debugger;
+debugger;
+
+```
+
+## `biome-baseline.json`
+
+```json
+{ "a.js": { "lint/suspicious/noDebugger": 2 } }
+```
+
+# Termination Message
+
+```block
+configuration ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Biome exited because the configuration resulted in errors. Please fix them.
+  
+
+
+```
+
+# Emitted Messages
+
+```block
+<TEMP_DIR>/baseline_err_when_baseline_is_malformed/biome-baseline.json configuration ━━━━━━━━━━━━━━━━━━━━
+
+  × Biome couldn't read the baseline file <TEMP_DIR>/baseline_err_when_baseline_is_malformed/biome-baseline.json: invalid type: integer `2`, expected an entry such as `{ "count": 2 }` at line 1 column 43
+  
+
+```

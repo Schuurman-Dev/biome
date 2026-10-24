@@ -1,0 +1,43 @@
+---
+source: crates/biome_cli/tests/snap_test.rs
+expression: redactor(content)
+---
+## Command
+
+```shell
+biome lint '<TEMP_DIR>/baseline_baseline_suppresses_recorded_violations'
+```
+
+## `biome.json`
+
+```json
+{
+  "linter": {
+    "rules": {
+      "preset": "none",
+      "suspicious": { "noDebugger": "error", "noDoubleEquals": "warn" },
+      "complexity": { "noUselessCatch": "error" }
+    }
+  }
+}
+```
+
+## `a.js`
+
+```js
+debugger;
+debugger;
+
+```
+
+## `biome-baseline.json`
+
+```json
+{ "a.js": { "lint/suspicious/noDebugger": { "count": 2 } } }
+```
+
+# Emitted Messages
+
+```block
+Checked 2 files in <TIME>. No fixes applied.
+```

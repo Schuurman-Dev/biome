@@ -152,6 +152,19 @@ Available options:
                               applying rule fixes.
         --reason=STRING       Adds an explanation to suppressions created by `--suppress`. This flag
                               requires `--suppress`.
+        --baseline            Records the current error-level lint violations in
+                              `biome-baseline.json`, at the root of the project, so that they are no
+                              longer reported. A file that gets more violations of a rule than
+                              recorded reports all of them again.
+        --baseline-rule=<GROUP/RULE>  Like `--baseline`, but records the violations of the given
+                              rule only. It can be repeated.
+                              Example:
+                              ```shell
+                              biome lint --baseline-rule=suspicious/noExplicitAny --baseline-rule=style/useConst
+                              ```
+        --prune-baseline      Lowers the counts in `biome-baseline.json` to the violations that
+                              remain, and removes entries for violations and files that no longer
+                              exist.
         --md-analyze-embeds=<true|false>  Runs the linter and assist actions on the code inside the
                               fenced code blocks, frontmatter, and HTML blocks of Markdown files.
                               Defaults to `false`.

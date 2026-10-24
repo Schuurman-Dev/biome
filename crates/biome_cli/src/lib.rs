@@ -13,6 +13,7 @@ use biome_service::{App, Workspace, WorkspaceRef};
 use commands::search::SearchCommandPayload;
 use std::env;
 
+mod baseline;
 mod changed;
 mod cli_options;
 mod commands;
@@ -102,6 +103,7 @@ impl<'app> CliSession<'app> {
                 log_options,
                 only,
                 skip,
+                baseline_options,
                 watch,
                 profile_rules,
                 profile_type_inference,
@@ -129,6 +131,7 @@ impl<'app> CliSession<'app> {
                     markdown_parser,
                     only,
                     skip,
+                    baseline_options,
                     profile_rules,
                     profile_type_inference,
                     watch,
@@ -138,6 +141,7 @@ impl<'app> CliSession<'app> {
                 write,
                 suppress,
                 suppression_reason,
+                baseline_options,
                 fix,
                 unsafe_,
                 cli_options,
@@ -172,6 +176,7 @@ impl<'app> CliSession<'app> {
                     write,
                     suppress,
                     suppression_reason,
+                    baseline_options,
                     fix,
                     unsafe_,
                     linter_configuration,

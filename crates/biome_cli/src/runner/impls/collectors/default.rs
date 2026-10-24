@@ -3,6 +3,7 @@ use crate::runner::diagnostics::{CIFormatDiffDiagnostic, ContentDiffAdvice, Form
 use crate::runner::execution::Execution;
 use crate::runner::process_file::{DiffKind, Message, MessageStat};
 use biome_diagnostics::{DiagnosticExt, DiagnosticTags, Error, Resource, Severity};
+use biome_service::baseline::RuleCounts;
 use camino::{Utf8Path, Utf8PathBuf};
 use crossbeam::channel::Receiver;
 use rustc_hash::FxHashSet;
@@ -44,6 +45,9 @@ pub(crate) struct DefaultCollector {
 
     diagnostics_to_print: RwLock<Vec<Error>>,
 
+    /// Violations reported for updating the baseline
+    baseline_violations: RwLock<Vec<(Utf8PathBuf, RuleCounts)>>,
+
     changed: AtomicUsize,
     unchanged: AtomicUsize,
     matches: AtomicUsize,
@@ -65,6 +69,7 @@ impl DefaultCollector {
             total_skipped_suggested_fixes: AtomicU32::new(0),
             working_directory: working_directory.map(|wd| wd.to_path_buf()),
             diagnostics_to_print: RwLock::default(),
+            baseline_violations: RwLock::default(),
             changed: AtomicUsize::new(0),
             unchanged: AtomicUsize::new(0),
             matches: AtomicUsize::new(0),
@@ -321,6 +326,15 @@ impl Collector for DefaultCollector {
                         }
                     }
                 }
+                Message::BaselineViolations {
+                    file_path,
+                    violations,
+                } => {
+                    self.baseline_violations
+                        .write()
+                        .unwrap()
+                        .push((file_path, violations));
+                }
                 Message::Stats(stats) => match stats {
                     MessageStat::Changed => {
                         self.changed.fetch_add(1, Ordering::Relaxed);
@@ -351,6 +365,7 @@ impl Collector for DefaultCollector {
         let skipped = self.skipped.load(Ordering::Relaxed);
         // last
         let diagnostics_to_print = self.diagnostics_to_print.into_inner().unwrap();
+        let baseline_violations = self.baseline_violations.into_inner().unwrap();
 
         CollectorSummary {
             duration,
@@ -365,6 +380,7 @@ impl Collector for DefaultCollector {
             skipped,
             matches,
             unchanged,
+            baseline_violations,
         }
     }
 }
@@ -384,4 +400,5 @@ pub(crate) struct CollectorSummary {
     pub unchanged: usize,
     pub matches: usize,
     pub skipped: usize,
+    pub baseline_violations: Vec<(Utf8PathBuf, RuleCounts)>,
 }

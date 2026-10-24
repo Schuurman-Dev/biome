@@ -8,6 +8,7 @@ use biome_diagnostics::{
 };
 use biome_diagnostics::{BpafError, IoError, SerdeJsonError};
 use biome_service::WorkspaceError;
+use biome_service::diagnostics::BaselineNotReadable;
 use std::process::{ExitCode, Termination};
 use std::{env::current_exe, fmt::Debug};
 
@@ -65,6 +66,8 @@ pub enum CliDiagnostic {
     Stdin(StdinDiagnostic),
     /// Plugin inspection results containing resolution errors.
     InspectionError(InspectionError),
+    /// The baseline file couldn't be read
+    BaselineNotReadable(BaselineNotReadable),
 }
 
 #[derive(Debug, Diagnostic)]
@@ -521,6 +524,12 @@ impl From<WorkspaceError> for CliDiagnostic {
 impl From<std::io::Error> for CliDiagnostic {
     fn from(error: std::io::Error) -> Self {
         Self::io_error(error)
+    }
+}
+
+impl From<BaselineNotReadable> for CliDiagnostic {
+    fn from(error: BaselineNotReadable) -> Self {
+        Self::BaselineNotReadable(error)
     }
 }
 

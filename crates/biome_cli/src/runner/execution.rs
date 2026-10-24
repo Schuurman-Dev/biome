@@ -5,7 +5,8 @@ use biome_diagnostics::Category;
 use biome_fs::BiomePath;
 use biome_service::configuration::ProjectScanComputer;
 use biome_service::workspace::{
-    FeatureName, FeaturesSupported, FixFileMode, PatternId, ScanKind, SearchLanguage, SupportKind,
+    BaselineMode, FeatureName, FeaturesSupported, FixFileMode, PatternId, ScanKind, SearchLanguage,
+    SupportKind,
 };
 use biome_service::{Workspace, WorkspaceError};
 use camino::{Utf8Path, Utf8PathBuf};
@@ -141,6 +142,12 @@ pub(crate) trait Execution: Send + Sync + std::panic::RefUnwindSafe {
     /// The value of `--suppression-reason`
     fn suppression_reason(&self) -> Option<&str> {
         None
+    }
+
+    /// How the baseline file is used: the values of `--baseline`,
+    /// `--baseline-rule` and `--prune-baseline`
+    fn baseline_mode(&self) -> BaselineMode {
+        BaselineMode::Apply
     }
 
     /// Whether this command needs to write on the file system

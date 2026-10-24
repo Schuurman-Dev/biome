@@ -1,5 +1,6 @@
 use super::{FixFileModeOptions, determine_fix_file_mode};
 use crate::CliDiagnostic;
+use crate::baseline::BaselineOptions;
 use crate::cli_options::CliOptions;
 use crate::commands::get_files_to_process_with_cli_options;
 use crate::runner::execution::{AnalyzerSelectors, Execution, VcsTargeted};
@@ -25,8 +26,8 @@ use biome_module_graph::type_inference::profiling::{
 };
 use biome_service::configuration::ProjectScanComputer;
 use biome_service::workspace::{
-    FeatureKind, FeatureName, FeaturesBuilder, FeaturesSupported, FixFileMode, ScanKind,
-    SupportKind,
+    BaselineMode, FeatureKind, FeatureName, FeaturesBuilder, FeaturesSupported, FixFileMode,
+    ScanKind, SupportKind,
 };
 use biome_service::{Workspace, WorkspaceError};
 use camino::Utf8PathBuf;
@@ -39,6 +40,7 @@ pub(crate) struct LintCommandPayload {
     pub(crate) unsafe_: bool,
     pub(crate) suppress: bool,
     pub(crate) suppression_reason: Option<String>,
+    pub(crate) baseline_options: BaselineOptions,
     pub(crate) linter_configuration: Option<LinterConfiguration>,
     pub(crate) vcs_configuration: Option<VcsConfiguration>,
     pub(crate) files_configuration: Option<FilesConfiguration>,
@@ -64,6 +66,8 @@ pub(crate) struct LintCommandPayload {
 }
 
 struct LintExecution {
+    /// How the baseline file is used
+    baseline_mode: BaselineMode,
     /// The type of fixes that should be applied when analyzing a file.
     ///
     /// It's [None] if the `lint` command is called without `--write`, `--fix`, or `--suppress`.
@@ -96,6 +100,10 @@ struct LintExecution {
 }
 
 impl Execution for LintExecution {
+    fn baseline_mode(&self) -> BaselineMode {
+        self.baseline_mode.clone()
+    }
+
     fn wanted_features(&self) -> FeatureName {
         FeaturesBuilder::new().with_linter().build()
     }
@@ -237,6 +245,10 @@ impl TraversalCommand for LintCommandPayload {
             biome_analyze::profiling::enable();
         }
 
+        let baseline_mode =
+            self.baseline_options
+                .mode(&self.only, &self.skip, self.stdin_file_path.as_deref())?;
+
         Ok(Box::new(LintExecution {
             fix_file_mode,
             stdin_file_path: self.stdin_file_path.clone(),
@@ -246,6 +258,7 @@ impl TraversalCommand for LintCommandPayload {
             suppress: self.suppress,
             suppression_reason: self.suppression_reason.clone(),
             skip_parse_errors: cli_options.skip_parse_errors,
+            baseline_mode,
             profile_rules: self.profile_rules,
             type_inference_profile,
         }))
@@ -358,6 +371,14 @@ impl TraversalCommand for LintCommandPayload {
                     "--watch",
                     "--write",
                     "Applying code fixes is not available in watch mode.",
+                ));
+            }
+
+            if self.baseline_options.writes_baseline() {
+                return Err(CliDiagnostic::incompatible_arguments(
+                    "--watch",
+                    self.baseline_options.writing_flag(),
+                    "Updating the baseline is not available in watch mode.",
                 ));
             }
 

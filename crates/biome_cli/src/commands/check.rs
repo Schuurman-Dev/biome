@@ -1,5 +1,6 @@
 use super::{FixFileModeOptions, determine_fix_file_mode, get_files_to_process_with_cli_options};
 use crate::CliDiagnostic;
+use crate::baseline::BaselineOptions;
 use crate::cli_options::CliOptions;
 use crate::runner::execution::{AnalyzerSelectors, Execution, VcsTargeted};
 use crate::runner::impls::commands::traversal::{LoadEditorConfig, TraversalCommand};
@@ -19,8 +20,8 @@ use biome_diagnostics::{Category, category};
 use biome_fs::FileSystem;
 use biome_module_graph::type_inference::profiling::TypeInferenceProfilerGuard;
 use biome_service::workspace::{
-    FeatureKind, FeatureName, FeaturesBuilder, FeaturesSupported, FixFileMode, ScanKind,
-    SupportKind,
+    BaselineMode, FeatureKind, FeatureName, FeaturesBuilder, FeaturesSupported, FixFileMode,
+    ScanKind, SupportKind,
 };
 use biome_service::{Workspace, WorkspaceError};
 use camino::Utf8PathBuf;
@@ -47,12 +48,15 @@ pub(crate) struct CheckCommandPayload {
     pub(crate) markdown_parser: Option<MarkdownParserConfiguration>,
     pub(crate) only: Vec<AnalyzerSelector>,
     pub(crate) skip: Vec<AnalyzerSelector>,
+    pub(crate) baseline_options: BaselineOptions,
     pub(crate) watch: bool,
     pub(crate) profile_rules: bool,
     pub(crate) profile_type_inference: bool,
 }
 
 struct CheckExecution {
+    /// How the baseline file is used
+    baseline_mode: BaselineMode,
     /// The type of fixes that should be applied when analyzing a file.
     ///
     /// It's [None] if the `check` command is called without `--write` or `--fix`.
@@ -83,6 +87,10 @@ struct CheckExecution {
 }
 
 impl Execution for CheckExecution {
+    fn baseline_mode(&self) -> BaselineMode {
+        self.baseline_mode.clone()
+    }
+
     fn wanted_features(&self) -> FeatureName {
         FeaturesBuilder::new().with_all().without_search().build()
     }
@@ -228,6 +236,10 @@ impl TraversalCommand for CheckCommandPayload {
             biome_analyze::profiling::enable();
         }
 
+        let baseline_mode =
+            self.baseline_options
+                .mode(&self.only, &self.skip, self.stdin_file_path.as_deref())?;
+
         Ok(Box::new(CheckExecution {
             fix_file_mode,
             stdin_file_path: self.stdin_file_path.clone(),
@@ -237,6 +249,7 @@ impl TraversalCommand for CheckCommandPayload {
             only: self.only.clone(),
             skip: self.skip.clone(),
             profile_rules: self.profile_rules,
+            baseline_mode,
             type_inference_profile,
         }))
     }
@@ -347,6 +360,14 @@ impl TraversalCommand for CheckCommandPayload {
                     "--watch",
                     "--write",
                     "Applying code fixes is not available in watch mode.",
+                ));
+            }
+
+            if self.baseline_options.writes_baseline() {
+                return Err(CliDiagnostic::incompatible_arguments(
+                    "--watch",
+                    self.baseline_options.writing_flag(),
+                    "Updating the baseline is not available in watch mode.",
                 ));
             }
         }

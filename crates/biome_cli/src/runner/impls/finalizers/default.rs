@@ -1,3 +1,4 @@
+use crate::baseline::update_baseline_file;
 use crate::cli_options::{CliOptions, CliReporter, CliReporterKind};
 use crate::reporter::checkstyle::CheckstyleReporter;
 use crate::reporter::github::{GithubReporter, GithubReporterVisitor};
@@ -19,6 +20,7 @@ use biome_diagnostics::{PrintDiagnostic, Resource};
 use biome_fs::{BiomePath, FileSystem, OpenOptions};
 use biome_json_formatter::context::JsonFormatOptions;
 use biome_rowan::AstNode;
+use biome_service::workspace::BaselineMode;
 use std::cmp::Ordering;
 
 pub(crate) struct DefaultFinalizer;
@@ -35,13 +37,20 @@ impl Finalizer for DefaultFinalizer {
             crawler_output: result,
             execution,
             paths,
+            project_dir,
         } = payload;
 
         let TraverseResult {
             mut summary,
             evaluated_paths,
             mut diagnostics,
+            baseline_violations,
         } = result;
+
+        let baseline_mode = execution.baseline_mode();
+        if baseline_mode != BaselineMode::Apply {
+            update_baseline_file(fs, project_dir, &baseline_mode, &baseline_violations)?;
+        }
 
         diagnostics.sort_unstable_by(|a, b| match a.severity().cmp(&b.severity()) {
             Ordering::Equal => {

@@ -1,3 +1,4 @@
+use crate::baseline::{BaselineOptions, baseline_options};
 use crate::changed::{get_changed_files, get_staged_files};
 use crate::cli_options::{CliOptions, CliReporterKind, ColorsArg, cli_options};
 use crate::logging::log_options;
@@ -235,6 +236,9 @@ pub enum BiomeCommand {
         #[bpaf(long("skip"), argument("GROUP|RULE|DOMAIN|ACTION|PLUGIN"))]
         skip: Vec<AnalyzerSelector>,
 
+        #[bpaf(external(baseline_options), hide_usage)]
+        baseline_options: BaselineOptions,
+
         /// After the initial run, watches the selected paths and reprocesses files modified afterward.
         #[bpaf(long("watch"), switch)]
         watch: bool,
@@ -265,6 +269,9 @@ pub enum BiomeCommand {
         /// Adds an explanation to suppressions created by `--suppress`. This flag requires `--suppress`.
         #[bpaf(long("reason"), argument("STRING"))]
         suppression_reason: Option<String>,
+
+        #[bpaf(external(baseline_options), hide_usage)]
+        baseline_options: BaselineOptions,
 
         #[bpaf(external(json_parser_configuration), optional, hide_usage)]
         json_parser: Option<JsonParserConfiguration>,
