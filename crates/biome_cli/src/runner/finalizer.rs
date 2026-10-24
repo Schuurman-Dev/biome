@@ -5,6 +5,7 @@ use biome_console::Console;
 use biome_fs::FileSystem;
 use biome_service::Workspace;
 use biome_service::projects::ProjectKey;
+use camino::Utf8Path;
 use std::time::Duration;
 
 pub trait Finalizer {
@@ -35,4 +36,6 @@ pub(crate) struct FinalizePayload<'a, I> {
     pub(crate) crawler_output: I,
     pub(crate) execution: &'a dyn Execution,
     pub(crate) paths: Vec<String>,
+    /// The directory the project was opened from
+    pub(crate) project_dir: &'a Utf8Path,
 }

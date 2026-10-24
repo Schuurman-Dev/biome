@@ -50,7 +50,7 @@ impl ProcessFile for LintAssistProcessFile {
                     .to_string()
             }
         });
-        let result = ctx
+        let mut result = ctx
             .workspace()
             .process_file(ProcessFileParams {
                 project_key: ctx.project_key(),
@@ -69,7 +69,7 @@ impl ProcessFile for LintAssistProcessFile {
                 diagnostic_level,
                 enforce_assist: execution.should_enforce_assist(),
                 skip_parse_errors: execution.should_skip_parse_errors(),
-                baseline_mode: BaselineMode::Apply,
+                baseline_mode: execution.baseline_mode(),
             })
             .with_file_path_and_code(
                 workspace_file.path.to_string(),
@@ -84,6 +84,13 @@ impl ProcessFile for LintAssistProcessFile {
         if fix_file_mode.is_some() {
             ctx.push_message(Message::SkippedFixes {
                 skipped_suggested_fixes: result.skipped_suggested_fixes,
+            });
+        }
+
+        if let Some(violations) = result.baseline_violations.take() {
+            ctx.push_message(Message::BaselineViolations {
+                file_path: workspace_file.path.to_path_buf(),
+                violations,
             });
         }
 

@@ -12,6 +12,7 @@ use biome_console::Console;
 use biome_deserialize::Merge;
 use biome_diagnostics::Error;
 use biome_fs::{BiomePath, FileSystem};
+use biome_service::baseline::RuleCounts;
 use biome_service::configuration::load_editorconfig;
 use biome_service::workspace::ScanKind;
 use biome_service::{Workspace, WorkspaceError};
@@ -219,4 +220,5 @@ pub(crate) struct TraverseResult {
     pub(crate) summary: TraversalSummary,
     pub(crate) evaluated_paths: Vec<BiomePath>,
     pub(crate) diagnostics: Vec<Error>,
+    pub(crate) baseline_violations: Vec<(Utf8PathBuf, RuleCounts)>,
 }

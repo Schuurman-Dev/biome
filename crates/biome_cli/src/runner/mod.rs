@@ -290,6 +290,7 @@ pub(crate) trait CommandRunner {
             duration,
             configuration_files: _,
             project_key,
+            project_dir,
         } = configured_workspace;
 
         if let Some(stdin) = self.get_stdin(console, execution.as_ref())? {
@@ -347,6 +348,7 @@ pub(crate) trait CommandRunner {
             scan_duration: duration,
             crawler_output: output,
             paths: paths.clone(),
+            project_dir: &project_dir,
         });
 
         if self.is_watch_mode() {
@@ -389,6 +391,7 @@ pub(crate) trait CommandRunner {
                             scan_duration: duration,
                             crawler_output: output,
                             paths: paths.into_iter().map(|path| path.into_string()).collect(),
+                            project_dir: &project_dir,
                         });
                     }
                     WatcherEvent::Error(error) => {
@@ -548,6 +551,7 @@ pub(crate) trait CommandRunner {
             duration: Some(result.duration),
             configuration_files: result.configuration_files,
             project_key: open_project_result.project_key,
+            project_dir: project_dir.clone(),
         })
     }
 
@@ -663,4 +667,6 @@ pub(crate) struct ConfiguredWorkspace {
     pub configuration_files: Vec<BiomePath>,
     /// The unique identifier of the project
     pub project_key: ProjectKey,
+    /// The directory the project was opened from
+    pub project_dir: Utf8PathBuf,
 }

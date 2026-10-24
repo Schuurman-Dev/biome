@@ -36,6 +36,7 @@ where
             unchanged,
             matches,
             skipped,
+            baseline_violations,
         } = collector_result;
 
         TraverseResult {
@@ -54,6 +55,7 @@ where
             },
             diagnostics,
             evaluated_paths,
+            baseline_violations,
         }
     }
 }

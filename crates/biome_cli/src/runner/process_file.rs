@@ -9,6 +9,7 @@ use biome_diagnostics::{
 };
 use biome_fs::{BiomePath, File, OpenOptions};
 use biome_languages::DocumentFileSource;
+use biome_service::baseline::RuleCounts;
 use biome_service::diagnostics::FileTooLarge;
 use biome_service::projects::ProjectKey;
 use biome_service::workspace::FileGuard;
@@ -17,6 +18,7 @@ use biome_service::workspace::{
     SupportKind, SupportsFeatureParams,
 };
 use biome_service::{Workspace, WorkspaceError};
+use camino::Utf8PathBuf;
 
 #[derive(Debug)]
 pub(crate) struct ChangedFile {
@@ -77,6 +79,11 @@ pub(crate) enum Message {
         old: String,
         new: String,
         diff_kind: DiffKind,
+    },
+    /// The error-level lint violations of a file, for updating the baseline
+    BaselineViolations {
+        file_path: Utf8PathBuf,
+        violations: RuleCounts,
     },
 }
 

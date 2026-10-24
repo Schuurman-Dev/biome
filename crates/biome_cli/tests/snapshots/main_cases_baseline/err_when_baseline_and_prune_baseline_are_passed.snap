@@ -1,0 +1,42 @@
+---
+source: crates/biome_cli/tests/snap_test.rs
+expression: redactor(content)
+---
+## Command
+
+```shell
+biome lint --baseline --prune-baseline '<TEMP_DIR>/baseline_err_when_baseline_and_prune_baseline_are_passed'
+```
+
+## `biome.json`
+
+```json
+{
+  "linter": {
+    "rules": {
+      "preset": "none",
+      "suspicious": { "noDebugger": "error", "noDoubleEquals": "warn" },
+      "complexity": { "noUselessCatch": "error" }
+    }
+  }
+}
+```
+
+## `a.js`
+
+```js
+debugger;
+debugger;
+
+```
+
+# Termination Message
+
+```block
+flags/invalid ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Incompatible arguments --baseline and --prune-baseline. Recording and pruning the baseline can't be done at the same time.
+  
+
+
+```

@@ -1,0 +1,74 @@
+---
+source: crates/biome_cli/tests/snap_test.rs
+expression: redactor(content)
+---
+## Command
+
+```shell
+biome lint '<TEMP_DIR>/baseline_baseline_reports_unused_entries'
+```
+
+## `biome.json`
+
+```json
+{
+  "linter": {
+    "rules": {
+      "preset": "none",
+      "suspicious": { "noDebugger": "error", "noDoubleEquals": "warn" },
+      "complexity": { "noUselessCatch": "error" }
+    }
+  }
+}
+```
+
+## `a.js`
+
+```js
+debugger;
+
+```
+
+## `biome-baseline.json`
+
+```json
+{ "a.js": { "lint/suspicious/noDebugger": { "count": 2 }, "lint/complexity/noUselessCatch": { "count": 1 } } }
+```
+
+# Termination Message
+
+```block
+lint ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × Some errors were emitted while running checks.
+  
+
+
+```
+
+# Emitted Messages
+
+```block
+a.js suppressions/unusedBaseline ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × The baseline allows 1 more violation(s) of lint/complexity/noUselessCatch than this file has.
+  
+  i Run the command again with --prune-baseline to remove baseline entries that no longer occur.
+  
+
+```
+
+```block
+a.js suppressions/unusedBaseline ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  × The baseline allows 1 more violation(s) of lint/suspicious/noDebugger than this file has.
+  
+  i Run the command again with --prune-baseline to remove baseline entries that no longer occur.
+  
+
+```
+
+```block
+Checked 2 files in <TIME>. No fixes applied.
+Found 2 errors.
+```

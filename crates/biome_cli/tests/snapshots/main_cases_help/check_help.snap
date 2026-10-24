@@ -501,6 +501,19 @@ Available options:
                               ```shell
                               biome check --skip=correctness/noUnusedVariables --skip=suspicious --skip=project --skip=plugin
                               ```
+        --baseline            Records the current error-level lint violations in
+                              `biome-baseline.json`, at the root of the project, so that they are no
+                              longer reported. A file that gets more violations of a rule than
+                              recorded reports all of them again.
+        --baseline-rule=<GROUP/RULE>  Like `--baseline`, but records the violations of the given
+                              rule only. It can be repeated.
+                              Example:
+                              ```shell
+                              biome lint --baseline-rule=suspicious/noExplicitAny --baseline-rule=style/useConst
+                              ```
+        --prune-baseline      Lowers the counts in `biome-baseline.json` to the violations that
+                              remain, and removes entries for violations and files that no longer
+                              exist.
         --watch               After the initial run, watches the selected paths and reprocesses
                               files modified afterward.
     -h, --help                Prints help information

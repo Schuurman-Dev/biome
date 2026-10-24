@@ -8,7 +8,7 @@ use crate::runner::process_file::{
 };
 use biome_analyze::RuleCategoriesBuilder;
 use biome_diagnostics::{DiagnosticExt, Error, Severity};
-use biome_service::workspace::{BaselineMode, FeaturesSupported, FileContent, ProcessFileParams};
+use biome_service::workspace::{FeaturesSupported, FileContent, ProcessFileParams};
 use tracing::info;
 
 pub(crate) struct CheckProcessFile;
@@ -34,7 +34,7 @@ impl ProcessFile for CheckProcessFile {
         }
         let AnalyzerSelectors { only, skip } = execution.analyzer_selectors();
         let fix_file_mode = execution.as_fix_file_mode();
-        let result = ctx
+        let mut result = ctx
             .workspace()
             .process_file(ProcessFileParams {
                 project_key: ctx.project_key(),
@@ -53,7 +53,7 @@ impl ProcessFile for CheckProcessFile {
                 diagnostic_level,
                 enforce_assist: execution.should_enforce_assist(),
                 skip_parse_errors: execution.should_skip_parse_errors(),
-                baseline_mode: BaselineMode::Apply,
+                baseline_mode: execution.baseline_mode(),
             })
             .with_file_path_and_code(
                 workspace_file.path.to_string(),
@@ -67,6 +67,13 @@ impl ProcessFile for CheckProcessFile {
         if fix_file_mode.is_some() {
             ctx.push_message(Message::SkippedFixes {
                 skipped_suggested_fixes: result.skipped_suggested_fixes,
+            });
+        }
+
+        if let Some(violations) = result.baseline_violations.take() {
+            ctx.push_message(Message::BaselineViolations {
+                file_path: workspace_file.path.to_path_buf(),
+                violations,
             });
         }
 

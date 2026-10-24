@@ -1,0 +1,72 @@
+---
+source: crates/biome_cli/tests/snap_test.rs
+expression: redactor(content)
+---
+## Command
+
+```shell
+biome lint --baseline '<TEMP_DIR>/baseline_baseline_records_error_violations'
+```
+
+## `biome.json`
+
+```json
+{
+  "linter": {
+    "rules": {
+      "preset": "none",
+      "suspicious": { "noDebugger": "error", "noDoubleEquals": "warn" },
+      "complexity": { "noUselessCatch": "error" }
+    }
+  }
+}
+```
+
+## `a.js`
+
+```js
+debugger;
+debugger;
+
+```
+
+## `b.js`
+
+```js
+if (a == b) {}
+try {} catch (e) { throw e; }
+
+```
+
+## `clean.js`
+
+```js
+export const a = 1;
+
+```
+
+# Emitted Messages
+
+```block
+b.js:1:7 lint/suspicious/noDoubleEquals  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  ! Using == may be unsafe if you are relying on type coercion.
+  
+  > 1 │ if (a == b) {}
+      │       ^^
+    2 │ try {} catch (e) { throw e; }
+    3 │ 
+  
+  i == is only allowed when comparing against null.
+  
+  i Unsafe fix: Use === instead.
+  
+    1 │ if·(a·===·b)·{}
+      │         +      
+
+```
+
+```block
+Checked 4 files in <TIME>. No fixes applied.
+Found 1 warning.
+```
