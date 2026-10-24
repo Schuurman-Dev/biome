@@ -13,6 +13,7 @@ use biome_console::markup;
 use biome_diagnostics::panic::PanicError;
 use biome_fs::{ConfigName, MemoryFileSystem, OsFileSystem};
 use biome_resolver::FsWithResolverProxy;
+use biome_service::baseline::BASELINE_FILE_NAME;
 use biome_service::db::DbState;
 use biome_service::workspace::{
     CloseProjectParams, GritSearchQuery, RageEntry, RageParams, RageResult, ServiceNotification,
@@ -55,13 +56,14 @@ where
     }))
 }
 
-const WATCHED_FILE_PATTERNS: [&str; 6] = [
+const WATCHED_FILE_PATTERNS: [&str; 7] = [
     "**/biome.{json,jsonc}",
     "**/.biome.{json,jsonc}",
     ".editorconfig",
     "pnpm-workspace.yaml",
     "**/.gitignore",
     "**/.ignore",
+    "**/biome-baseline.json",
 ];
 
 /// Escapes a filesystem path before embedding it in an LSP string glob.
@@ -443,7 +445,8 @@ impl LanguageServer for LSPServer {
                         || (watched_file.ends_with(".editorconfig"))
                         || watched_file.ends_with("pnpm-workspace.yaml")
                         || watched_file.ends_with(".gitignore")
-                        || watched_file.ends_with(".ignore"))
+                        || watched_file.ends_with(".ignore")
+                        || watched_file.ends_with(BASELINE_FILE_NAME))
                 {
                     info!(
                         path = %watched_file.display(),

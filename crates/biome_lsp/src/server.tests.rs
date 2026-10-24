@@ -6722,6 +6722,7 @@ fn assert_relative_watched_files(
         "pnpm-workspace.yaml",
         "**/.gitignore",
         "**/.ignore",
+        "**/biome-baseline.json",
     ];
     assert_eq!(
         options.watchers.len(),
@@ -6757,6 +6758,7 @@ fn assert_string_watched_files(
         "pnpm-workspace.yaml",
         "**/.gitignore",
         "**/.ignore",
+        "**/biome-baseline.json",
     ];
     assert_eq!(
         options.watchers.len(),
