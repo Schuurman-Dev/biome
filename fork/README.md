@@ -32,3 +32,28 @@ delete them.
 
 Options: `--biome <path>` (default `$BIOME_BINARY`, then `node_modules/.bin/biome`),
 `--keep-reason <regex>`, `--allow-existing-errors`, `--dry-run`, and paths to limit the run.
+
+## Releasing `@schuurman-dev/biome`
+
+Published privately to GitHub Packages (Schuurman-Dev org) as a wrapper plus one package per
+binary. The wrapper depends on each binary under its upstream name
+(`"@biomejs/cli-darwin-arm64": "npm:@schuurman-dev/cli-darwin-arm64@…"`), so upstream's
+`bin/biome` and the editor extensions work unchanged when a project installs it as:
+
+```json
+"@biomejs/biome": "npm:@schuurman-dev/biome@2.6.4-baseline.1"
+```
+
+```shell
+# upstream's release flags; BIOME_VERSION is what `biome --version` prints
+RUSTFLAGS='-C strip=symbols -C codegen-units=1' BIOME_VERSION=<version> \
+  cargo build -p biome_cli --release
+node fork/package-npm.mjs <version> darwin-arm64=target/release/biome
+# publish binaries before the wrapper; prerelease versions need --tag
+(cd fork/dist/cli-darwin-arm64 && npm publish --tag latest --userconfig <npmrc>)
+(cd fork/dist/biome && npm publish --tag latest --userconfig <npmrc>)
+```
+
+Versions can't be republished, so bump `-baseline.N` for every release. Only macOS arm64 is built
+so far; a platform without a binary still installs (the binary packages are optional and carry
+`os`/`cpu`), it just can't run `biome`.
