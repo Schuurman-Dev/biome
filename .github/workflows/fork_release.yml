@@ -1,0 +1,131 @@
+# Fork only: builds the CLI and publishes @schuurman-dev/biome to GitHub Packages
+# when a tag such as v2.6.4-baseline.2 is pushed. See fork/README.md.
+name: Fork release
+on:
+  push:
+    tags:
+      - 'v*-baseline.*'
+
+permissions:
+  contents: read
+
+env:
+  RUST_BACKTRACE: 1
+
+jobs:
+  version:
+    name: Read the version
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+  build-macos:
+    needs: version
+    name: Build darwin-arm64
+    runs-on: macos-14
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build binary
+        run: cargo build -p biome_cli --release --target aarch64-apple-darwin
+        env:
+          RUSTFLAGS: '-C strip=symbols -C codegen-units=1'
+          BIOME_VERSION: ${{ needs.version.outputs.version }}
+      - name: Copy binary
+        run: |
+          mkdir dist
+          cp target/aarch64-apple-darwin/release/biome dist/biome-darwin-arm64
+      - name: Upload binary
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: biome-darwin-arm64
+          path: dist/biome-darwin-arm64
+          if-no-files-found: error
+
+  # Built on Debian 11 (bullseye), as upstream does, to support older versions of glibc.
+  build-linux:
+    needs: version
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            code-target: linux-x64
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            code-target: linux-arm64
+    name: Build ${{ matrix.code-target }}
+    runs-on: ${{ matrix.os }}
+    container:
+      image: rust:1.98.0-bullseye@sha256:97cc99038824c3cee60ae9d0f75e0171ae0ae8b80786d26d0e7d21956f8d0164
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set jemalloc page size for linux-arm64
+        if: matrix.code-target == 'linux-arm64'
+        run: echo "JEMALLOC_SYS_WITH_LG_PAGE=16" >> "$GITHUB_ENV"
+      - name: Build binary
+        run: cargo build -p biome_cli --release --target ${{ matrix.target }}
+        env:
+          RUSTFLAGS: '-C strip=symbols -C codegen-units=1'
+          BIOME_VERSION: ${{ needs.version.outputs.version }}
+      - name: Copy binary
+        run: |
+          mkdir dist
+          cp target/${{ matrix.target }}/release/biome dist/biome-${{ matrix.code-target }}
+      - name: Upload binary
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: biome-${{ matrix.code-target }}
+          path: dist/biome-${{ matrix.code-target }}
+          if-no-files-found: error
+
+  publish:
+    needs: [version, build-macos, build-linux]
+    name: Publish
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.21.0
+          registry-url: https://npm.pkg.github.com
+          scope: '@schuurman-dev'
+      - name: Download binaries
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: biome-*
+          path: bin
+          merge-multiple: true
+      - name: Build packages
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: >-
+          node fork/package-npm.mjs "$VERSION"
+          darwin-arm64=bin/biome-darwin-arm64
+          linux-x64=bin/biome-linux-x64
+          linux-arm64=bin/biome-linux-arm64
+      # Binaries before the wrapper, which depends on them. Prerelease versions need --tag.
+      - name: Publish packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for package in cli-darwin-arm64 cli-linux-x64 cli-linux-arm64 biome; do
+            (cd "fork/dist/$package" && npm publish --tag latest)
+          done
