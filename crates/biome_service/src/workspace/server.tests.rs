@@ -2895,6 +2895,64 @@ fn pull_diagnostics_and_actions_for_js_file() {
     insta::assert_debug_snapshot!(result)
 }
 
+#[test]
+fn pull_diagnostics_and_actions_applies_the_baseline() {
+    let fs = MemoryFileSystem::default();
+    fs.insert(Utf8PathBuf::from("/project/within.js"), b"debugger;");
+    fs.insert(
+        Utf8PathBuf::from("/project/over.js"),
+        b"debugger;\ndebugger;",
+    );
+    fs.insert(
+        Utf8PathBuf::from("/project/biome-baseline.json"),
+        br#"{
+  "over.js": { "lint/suspicious/noDebugger": { "count": 1 } },
+  "within.js": { "lint/suspicious/noDebugger": { "count": 1 } }
+}"#,
+    );
+
+    let (workspace, project_key) = setup_workspace_and_open_project(fs, "/project");
+    workspace
+        .update_settings(UpdateSettingsParams {
+            project_key,
+            workspace_directory: Some(BiomePath::new("/project")),
+            configuration: Configuration::default(),
+            extended_configurations: vec![],
+            module_graph_resolution_kind: ModuleGraphResolutionKind::ModulesAndTypes,
+        })
+        .unwrap();
+
+    let count_diagnostics = |path: &str| {
+        workspace
+            .open_file(OpenFileParams {
+                project_key,
+                path: BiomePath::new(path),
+                content: FileContent::FromServer,
+                document_file_source: None,
+                persist_node_cache: false,
+                inline_config: None,
+                editor_features: None,
+            })
+            .unwrap();
+        workspace
+            .pull_diagnostics_and_actions(PullDiagnosticsAndActionsParams {
+                path: BiomePath::new(path),
+                only: vec![],
+                skip: vec![],
+                enabled_rules: vec![],
+                project_key,
+                categories: Default::default(),
+                inline_config: None,
+            })
+            .unwrap()
+            .diagnostics
+            .len()
+    };
+
+    assert_eq!(count_diagnostics("/project/within.js"), 0);
+    assert_eq!(count_diagnostics("/project/over.js"), 2);
+}
+
 /// Regression test for https://github.com/biomejs/biome/issues/9506 and
 /// https://github.com/biomejs/biome/issues/9479.
 ///

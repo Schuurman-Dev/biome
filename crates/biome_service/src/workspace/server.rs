@@ -3948,6 +3948,26 @@ impl Workspace for WorkspaceServerWithDb<'_> {
                 final_result.diagnostics.extend(snippet_result.diagnostics);
             }
 
+            // Unused entries aren't reported here: this result only lists
+            // diagnostics that come with actions.
+            if categories.is_lint()
+                && let Some(baseline) = self.baselines.pin().get(&project_key).cloned()
+                && let Some(key) = baseline.relative_path(&path)
+                && baseline.baseline.contains_file(&key)
+            {
+                let violations = count_violations(
+                    final_result
+                        .diagnostics
+                        .iter()
+                        .map(|(diagnostic, _)| diagnostic),
+                );
+                let outcome = baseline.baseline.evaluate(&key, &violations);
+                final_result.diagnostics.retain(|(diagnostic, _)| {
+                    baselined_rule(diagnostic)
+                        .is_none_or(|rule| !outcome.suppressed.iter().any(|name| name == rule))
+                });
+            }
+
             final_result
         } else {
             // Parse diagnostics aren't fixable, so we return an empty list
