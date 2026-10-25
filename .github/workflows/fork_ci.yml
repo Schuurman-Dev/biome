@@ -1,0 +1,43 @@
+# Fork only: tests the crates the lint baseline changes on every push to its branch.
+name: Fork CI
+on:
+  push:
+    branches:
+      - feat/lint-baseline
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: '0'
+  CARGO_PROFILE_DEV_DEBUG: '0'
+  CARGO_PROFILE_TEST_DEBUG: '0'
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install toolchain
+        uses: moonrepo/setup-rust@abb2d32350334249b178c401e5ec5836e0cd88d3 # v1.3.0
+        with:
+          components: clippy, rustfmt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check formatting
+        run: cargo fmt --all --check
+      - name: Run clippy
+        run: >-
+          cargo clippy -p biome_service -p biome_cli -p biome_lsp -p biome_diagnostics_categories
+          --all-features --all-targets -- -D warnings
+      - name: Run tests
+        run: cargo test -p biome_service -p biome_cli -p biome_lsp --features biome_service/stable

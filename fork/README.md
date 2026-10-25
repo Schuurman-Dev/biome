@@ -44,8 +44,24 @@ binary. The wrapper depends on each binary under its upstream name
 "@biomejs/biome": "npm:@schuurman-dev/biome@2.6.4-baseline.1"
 ```
 
+To release, push a tag. `.github/workflows/fork_release.yml` builds darwin-arm64, linux-x64 and
+linux-arm64 (glibc) with upstream's release flags, then publishes the binaries and the wrapper:
+
 ```shell
-# upstream's release flags; BIOME_VERSION is what `biome --version` prints
+git tag v2.6.4-baseline.2 && git push origin v2.6.4-baseline.2
+```
+
+Versions can't be republished, so bump `-baseline.N` for every release. A platform without a
+binary (Windows, Intel macOS, musl Linux such as Alpine) still installs, since the binary
+packages are optional and carry `os`/`cpu`/`libc`; it just can't run `biome`.
+
+`.github/workflows/fork_ci.yml` runs fmt, clippy and the tests of the changed crates on every push
+to `feat/lint-baseline`.
+
+To build and publish by hand instead:
+
+```shell
+# BIOME_VERSION is what `biome --version` prints
 RUSTFLAGS='-C strip=symbols -C codegen-units=1' BIOME_VERSION=<version> \
   cargo build -p biome_cli --release
 node fork/package-npm.mjs <version> darwin-arm64=target/release/biome
@@ -53,7 +69,3 @@ node fork/package-npm.mjs <version> darwin-arm64=target/release/biome
 (cd fork/dist/cli-darwin-arm64 && npm publish --tag latest --userconfig <npmrc>)
 (cd fork/dist/biome && npm publish --tag latest --userconfig <npmrc>)
 ```
-
-Versions can't be republished, so bump `-baseline.N` for every release. Only macOS arm64 is built
-so far; a platform without a binary still installs (the binary packages are optional and carry
-`os`/`cpu`), it just can't run `biome`.
