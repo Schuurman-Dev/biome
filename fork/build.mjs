@@ -6,6 +6,7 @@
 //                        JSON is always included, since biome.json is JSON.
 //   --plugins            include GritQL plugins (the `plugins` key of biome.json)
 //   --js-plugins         include JavaScript plugins, which embed a JavaScript engine
+//   --small              optimize for size instead of speed: about a third smaller, up to a quarter slower
 //   --version <version>  what `biome --version` prints; defaults to the highest v* tag
 //   --pack               also write npm packages for this platform to fork/dist
 //
@@ -39,6 +40,7 @@ const { values } = parseArgs({
 		languages: { type: "string" },
 		plugins: { type: "boolean", default: false },
 		"js-plugins": { type: "boolean", default: false },
+		small: { type: "boolean", default: false },
 		version: { type: "string" },
 		pack: { type: "boolean", default: false },
 	},
@@ -46,7 +48,7 @@ const { values } = parseArgs({
 
 if (!values.languages) {
 	console.error(
-		"Usage: node fork/build.mjs --languages <js,css,html,...|all> [--plugins] [--js-plugins] [--version <version>] [--pack]",
+		"Usage: node fork/build.mjs --languages <js,css,html,...|all> [--plugins] [--js-plugins] [--small] [--version <version>] [--pack]",
 	);
 	process.exit(1);
 }
@@ -71,6 +73,7 @@ const version = values.version ?? latestTag();
 const featureList = [...features].sort().join(",");
 console.log(`Building biome ${version} with: json, ${names.join(", ")}`);
 console.log(`cargo features: ${featureList}`);
+if (values.small) console.log("Optimizing for size.");
 
 execFileSync("cargo", ["build", "-p", "biome_cli", "--release", "--no-default-features", "--features", featureList], {
 	cwd: REPO_ROOT,
@@ -79,6 +82,7 @@ execFileSync("cargo", ["build", "-p", "biome_cli", "--release", "--no-default-fe
 		...process.env,
 		BIOME_VERSION: version,
 		RUSTFLAGS: "-C strip=symbols -C codegen-units=1",
+		...(values.small && { CARGO_PROFILE_RELEASE_OPT_LEVEL: "s" }),
 	},
 });
 

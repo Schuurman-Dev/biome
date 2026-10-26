@@ -51,8 +51,12 @@ engine. `biome upgrade` is never included.
 
 | Build | Size (macOS arm64) |
 |---|---|
-| `all --plugins --js-plugins` (the release) | 76 MiB |
+| `all --plugins --js-plugins` (the release, without `biome upgrade`) | 71 MiB |
+| `all --plugins --js-plugins --small` | 49 MiB |
 | `js,css,html` | 58 MiB |
+
+`--small` optimizes for size instead of speed: the binary is about a third smaller, `biome check`
+uses about a tenth more CPU and `biome format` takes about a quarter longer.
 
 A release build needs about 10 GB of free disk and 15 minutes. The binary is
 `target/release/biome`; `biome version` lists its languages. Use it from a project with
