@@ -85,7 +85,8 @@ binary (Windows, Intel macOS, musl Linux such as Alpine) still installs, since t
 packages are optional and carry `os`/`cpu`/`libc`; it just can't run `biome`.
 
 `.github/workflows/fork_ci.yml` runs fmt, clippy and the tests of the changed crates on every push
-to `feat/lint-baseline`.
+to `feat/lint-baseline`. It also checks that each language feature compiles on its own, and runs
+`test-reduced-build.mjs` against a JavaScript-only build.
 
 To build and publish by hand instead:
 

@@ -1,4 +1,5 @@
-# Fork only: tests the crates the lint baseline changes on every push to its branch.
+# Fork only: tests the crates the fork changes, and builds with fewer languages, on every push to
+# its branch.
 name: Fork CI
 on:
   push:
@@ -41,3 +42,24 @@ jobs:
           --all-features --all-targets -- -D warnings
       - name: Run tests
         run: cargo test -p biome_service -p biome_cli -p biome_lsp --features biome_service/stable
+
+  reduced-builds:
+    name: Reduced builds
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install toolchain
+        uses: moonrepo/setup-rust@abb2d32350334249b178c401e5ec5836e0cd88d3 # v1.3.0
+        with:
+          bins: cargo-hack
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check each feature on its own
+        run: cargo hack check -p biome_cli --each-feature --exclude-features docgen,unstable
+      - name: Build with only JavaScript
+        run: cargo build -p biome_cli --bin biome --no-default-features --features lang_js
+      - name: Test the JavaScript-only build
+        run: node fork/test-reduced-build.mjs target/debug/biome
