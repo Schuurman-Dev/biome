@@ -8,6 +8,7 @@ use biome_js_syntax::{
 };
 use biome_rowan::AstNode;
 use biome_rule_options::no_document_cookie::NoDocumentCookieOptions;
+use rustc_hash::FxHashSet;
 
 use crate::services::semantic::Semantic;
 
@@ -117,27 +118,33 @@ fn identifier_is_global_document(
     name.text() == "document" && model.binding(reference).is_none()
 }
 
-/// Check `expr` is `document`
+/// Check `expr` is `document`, directly or through variables initialized with it
 fn is_global_document(expr: &AnyJsExpression, model: &SemanticModel) -> Option<()> {
-    let (reference, name) = global_identifier(&expr.as_any_global_identifier_expression()?)?;
+    let mut expr = expr.clone();
+    // Initializers can refer back to their own variable, as in `const a = a;` or
+    // `const a = b; const b = a;`, so each variable is followed at most once.
+    let mut visited = FxHashSet::default();
+    loop {
+        let (reference, name) = global_identifier(&expr.as_any_global_identifier_expression()?)?;
 
-    // `expr` is global document
-    if identifier_is_global_document(&reference, &name, model) {
-        Some(())
-    } else {
-        // Check binding declaration recursively
+        // `expr` is global document
+        if identifier_is_global_document(&reference, &name, model) {
+            return Some(());
+        }
+
         let bind = model.binding(&reference)?;
+        if !visited.insert(bind.range()) {
+            return None;
+        }
         let decl = bind.tree().declaration()?;
         let decl = decl.parent_binding_pattern_declaration().unwrap_or(decl);
-        match decl {
+        expr = match decl {
             // const foo = document;
             AnyJsBindingDeclaration::JsVariableDeclarator(declarator) => {
-                let initializer = declarator.initializer()?;
-                let right_expr = initializer.expression().ok()?;
-                is_global_document(&right_expr, model)
+                declarator.initializer()?.expression().ok()?
             }
-            _ => None,
-        }
+            _ => return None,
+        };
     }
 }
 
