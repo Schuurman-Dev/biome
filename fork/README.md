@@ -58,10 +58,13 @@ engine. `biome upgrade` is never included.
 `--small` optimizes for size instead of speed: the binary is about a third smaller, `biome check`
 uses about a tenth more CPU and `biome format` takes about a quarter longer.
 
-A release build needs about 10 GB of free disk and 15 minutes. The binary is
-`target/release/biome`; `biome version` lists its languages. Use it from a project with
+The binary is `fork/build/biome`; `biome version` lists its languages. Use it from a project with
 `BIOME_BINARY=<path> npx biome ...`, and from an editor with the extension's `biome.lsp.bin`
 setting. `--pack` also writes npm packages for this platform to `fork/dist`, as for a release.
+
+A first build takes 30 to 50 minutes. Cargo keeps every compiled crate in `fork/build/cache`
+(about 2.5 GB for each set of options), apart from `target/`, so the next build only recompiles
+what changed. `--clean` deletes the cache after the build.
 
 Any `biome.json` loads in any build. Settings for a language or plugins that aren't included are
 ignored, and files of those languages are skipped.

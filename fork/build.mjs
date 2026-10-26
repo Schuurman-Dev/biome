@@ -9,21 +9,28 @@
 //   --small              optimize for size instead of speed: about a third smaller, up to a quarter slower
 //   --version <version>  what `biome --version` prints; defaults to the highest v* tag
 //   --pack               also write npm packages for this platform to fork/dist
+//   --clean              delete cargo's build cache afterwards (a few GB per set of options)
 //
 // e.g. node fork/build.mjs --languages js,css,html
 //
 // The embed features follow the languages: HTML handles its scripts when JavaScript is included
 // and its styles when CSS is too, JavaScript handles CSS-in-JS and GraphQL templates when those
 // languages are included, and Markdown handles code blocks in every included language.
+//
+// The binary is written to fork/build/biome. Cargo's intermediate files go to fork/build/cache,
+// apart from target/, so the next build only recompiles what changed; --clean deletes them.
 
 import { execFileSync } from "node:child_process";
-import { statSync } from "node:fs";
+import { copyFileSync, mkdirSync, renameSync, rmSync, statSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const BINARY = resolve(REPO_ROOT, "target/release", process.platform === "win32" ? "biome.exe" : "biome");
+const EXE = process.platform === "win32" ? "biome.exe" : "biome";
+const OUT = resolve(REPO_ROOT, "fork/build");
+const CACHE = resolve(OUT, "cache");
+const BINARY = resolve(OUT, EXE);
 
 const LANGUAGES = {
 	js: ["lang_js", "module_graph", "type_inference"],
@@ -43,12 +50,13 @@ const { values } = parseArgs({
 		small: { type: "boolean", default: false },
 		version: { type: "string" },
 		pack: { type: "boolean", default: false },
+		clean: { type: "boolean", default: false },
 	},
 });
 
 if (!values.languages) {
 	console.error(
-		"Usage: node fork/build.mjs --languages <js,css,html,...|all> [--plugins] [--js-plugins] [--small] [--version <version>] [--pack]",
+		"Usage: node fork/build.mjs --languages <js,css,html,...|all> [--plugins] [--js-plugins] [--small] [--version <version>] [--pack] [--clean]",
 	);
 	process.exit(1);
 }
@@ -75,16 +83,26 @@ console.log(`Building biome ${version} with: json, ${names.join(", ")}`);
 console.log(`cargo features: ${featureList}`);
 if (values.small) console.log("Optimizing for size.");
 
-execFileSync("cargo", ["build", "-p", "biome_cli", "--release", "--no-default-features", "--features", featureList], {
-	cwd: REPO_ROOT,
-	stdio: "inherit",
-	env: {
-		...process.env,
-		BIOME_VERSION: version,
-		RUSTFLAGS: "-C strip=symbols -C codegen-units=1",
-		...(values.small && { CARGO_PROFILE_RELEASE_OPT_LEVEL: "s" }),
-	},
-});
+try {
+	execFileSync("cargo", ["build", "-p", "biome_cli", "--release", "--no-default-features", "--features", featureList], {
+		cwd: REPO_ROOT,
+		stdio: "inherit",
+		env: {
+			...process.env,
+			BIOME_VERSION: version,
+			CARGO_TARGET_DIR: CACHE,
+			RUSTFLAGS: "-C strip=symbols -C codegen-units=1",
+			...(values.small && { CARGO_PROFILE_RELEASE_OPT_LEVEL: "s" }),
+		},
+	});
+	mkdirSync(OUT, { recursive: true });
+	// A rename keeps running copies (an editor's language server) on the old file, which macOS
+	// would kill if it was overwritten in place.
+	copyFileSync(resolve(CACHE, "release", EXE), `${BINARY}.new`);
+	renameSync(`${BINARY}.new`, BINARY);
+} finally {
+	if (values.clean) rmSync(CACHE, { recursive: true, force: true });
+}
 
 const size = (statSync(BINARY).size / 1024 / 1024).toFixed(1);
 console.log(`\n${relative(process.cwd(), BINARY)} (${size} MiB)`);
