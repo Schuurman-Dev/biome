@@ -59,6 +59,10 @@ pub(crate) enum EmbedCandidate {
         tag_name: TokenText,
         attributes: Vec<(TokenText, Option<TokenText>)>,
         content: EmbedContent,
+        #[cfg_attr(
+            not(feature = "lang_css"),
+            expect(dead_code, reason = "Only `<style>` parsing reads it.")
+        )]
         is_global: bool,
     },
     Frontmatter {
@@ -162,6 +166,7 @@ impl EmbedCandidate {
         }
     }
 
+    #[cfg(feature = "lang_css")]
     pub fn is_css_global(&self) -> bool {
         match self {
             Self::Element { is_global, .. } => *is_global,

@@ -125,7 +125,7 @@ mimalloc = { workspace = true }
 
 [features]
 # To parse snippets and embeds inside HTML files
-html_embeds    = ["dep:biome_embeds", "lang_css", "lang_html", "lang_js", "lang_json"]
+html_embeds    = ["dep:biome_embeds", "lang_html", "lang_js"]
 # JavaScript embeds
 js_embeds      = ["lang_css", "lang_graphql", "lang_js"]
 js_plugin      = ["biome_plugin_loader/js_plugin", "plugins"]
