@@ -1632,6 +1632,13 @@ impl From<BiomePath> for FileExistsParams {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]
 pub struct GetModuleGraphResult {
+    #[cfg_attr(
+        not(feature = "module_graph"),
+        expect(
+            clippy::zero_sized_map_values,
+            reason = "`SerializedModuleInfo` is empty without the module graph."
+        )
+    )]
     pub data: FxHashMap<String, SerializedModuleInfo>,
 }
 

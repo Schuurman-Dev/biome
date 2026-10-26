@@ -195,8 +195,7 @@ lang_yaml      = [
   "dep:biome_yaml_syntax"
 ]
 md_embeds      = ["lang_md"]
-# TODO does it need lang_js, lang_html and lang_css? To verify
-module_graph   = ["dep:biome_module_graph"]
+module_graph   = ["dep:biome_module_graph", "lang_js"]
 plugins        = ["biome_configuration/plugins", "dep:biome_plugin_loader", "lang_grit"]
 schema         = [
   "biome_configuration/schema",
