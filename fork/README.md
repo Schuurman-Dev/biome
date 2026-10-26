@@ -1,6 +1,7 @@
 # Fork tools
 
-Tools for projects that use this fork's `biome-baseline.json`. They aren't part of Biome.
+Tools for building and releasing this fork, and for projects that use its `biome-baseline.json`.
+They aren't part of Biome.
 
 ## `ignores-to-baseline.mjs`
 
@@ -32,6 +33,34 @@ delete them.
 
 Options: `--biome <path>` (default `$BIOME_BINARY`, then `node_modules/.bin/biome`),
 `--keep-reason <regex>`, `--allow-existing-errors`, `--dry-run`, and paths to limit the run.
+
+## Building with only the languages you need
+
+`build.mjs` builds a `biome` binary that contains only the languages you choose:
+
+```shell
+node fork/build.mjs --languages js,css,html
+```
+
+Names: `js` (JavaScript, TypeScript and JSX), `css`, `html`, `graphql`, `markdown`, `yaml`, `grit`,
+or `all`. JSON is always included. Embedded code follows the languages: `<script>` in HTML is
+handled when `js` is included and `<style>` when `css` is too, `css`/`styled` and `gql` templates
+in JavaScript when `css` and `graphql` are, and Markdown code blocks in every included language.
+`--plugins` adds GritQL plugins and `--js-plugins` JavaScript plugins, which embed a JavaScript
+engine. `biome upgrade` is never included.
+
+| Build | Size (macOS arm64) |
+|---|---|
+| `all --plugins --js-plugins` (the release) | 76 MiB |
+| `js,css,html` | 58 MiB |
+
+A release build needs about 10 GB of free disk and 15 minutes. The binary is
+`target/release/biome`; `biome version` lists its languages. Use it from a project with
+`BIOME_BINARY=<path> npx biome ...`, and from an editor with the extension's `biome.lsp.bin`
+setting. `--pack` also writes npm packages for this platform to `fork/dist`, as for a release.
+
+Any `biome.json` loads in any build. Settings for a language or plugins that aren't included are
+ignored, and files of those languages are skipped.
 
 ## Releasing `@schuurman-dev/biome`
 
