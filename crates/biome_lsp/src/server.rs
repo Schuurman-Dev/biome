@@ -16,7 +16,7 @@ use biome_resolver::FsWithResolverProxy;
 use biome_service::baseline::BASELINE_FILE_NAME;
 use biome_service::db::DbState;
 use biome_service::workspace::{
-    CloseProjectParams, GritSearchQuery, RageEntry, RageParams, RageResult, ServiceNotification,
+    CloseProjectParams, RageEntry, RageParams, RageResult, ServiceNotification,
 };
 use biome_service::{WatcherInstruction, Workspace, WorkspaceServer};
 use crossbeam::channel::{Sender, bounded};
@@ -840,7 +840,10 @@ impl ServerFactory {
                 fs,
                 instruction_tx,
                 service_tx,
-                Arc::new(biome_service::workspace::GritSearchQuery::default()),
+                Arc::new(cfg_select! {
+                    feature = "lang_grit" => biome_service::workspace::GritSearchQuery::default(),
+                    _ => biome_service::workspace::NoopQueryProvider {},
+                }),
                 None,
             )),
             sessions: Sessions::default(),
@@ -875,7 +878,10 @@ impl ServerFactory {
                 fs,
                 watcher_tx,
                 service_tx,
-                Arc::new(GritSearchQuery::default()),
+                Arc::new(cfg_select! {
+                    feature = "lang_grit" => biome_service::workspace::GritSearchQuery::default(),
+                    _ => biome_service::workspace::NoopQueryProvider {},
+                }),
                 None,
             )),
             db_state,

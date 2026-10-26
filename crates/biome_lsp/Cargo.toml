@@ -26,7 +26,7 @@ biome_line_index     = { workspace = true }
 biome_lsp_converters = { workspace = true }
 biome_resolver       = { workspace = true }
 biome_rowan          = { workspace = true }
-biome_service        = { workspace = true, features = ["stable"] }
+biome_service        = { workspace = true, features = ["lang_json"] }
 biome_text_edit      = { workspace = true }
 biome_text_size      = { workspace = true, features = ["serde"] }
 camino               = { workspace = true }
@@ -49,6 +49,39 @@ uuid                 = { workspace = true, features = ["v4"] }
 biome_service = { path = "../biome_service", features = ["js_plugin"] }
 tokio         = { workspace = true, features = ["io-util", "macros", "rt", "rt-multi-thread"] }
 tower         = { workspace = true, features = ["timeout"] }
+
+[features]
+default        = ["stable"]
+html_embeds    = ["biome_service/html_embeds"]
+js_embeds      = ["biome_service/js_embeds"]
+js_plugin      = ["biome_service/js_plugin"]
+lang_css       = ["biome_service/lang_css"]
+lang_graphql   = ["biome_service/lang_graphql"]
+lang_grit      = ["biome_service/lang_grit"]
+lang_html      = ["biome_service/lang_html"]
+lang_js        = ["biome_service/lang_js"]
+lang_md        = ["biome_service/lang_md"]
+lang_yaml      = ["biome_service/lang_yaml"]
+md_embeds      = ["biome_service/md_embeds"]
+module_graph   = ["biome_service/module_graph"]
+plugins        = ["biome_service/plugins", "lang_grit"]
+stable         = [
+  "html_embeds",
+  "js_embeds",
+  "js_plugin",
+  "lang_css",
+  "lang_graphql",
+  "lang_grit",
+  "lang_html",
+  "lang_js",
+  "lang_md",
+  "lang_yaml",
+  "md_embeds",
+  "module_graph",
+  "plugins",
+  "type_inference"
+]
+type_inference = ["biome_service/type_inference"]
 
 [lints]
 workspace = true

@@ -20,10 +20,20 @@ path = "src/main.rs"
 [dependencies]
 anyhow                   = { workspace = true }
 biome_analyze            = { workspace = true }
-biome_configuration      = { workspace = true, features = ["cli"] }
+biome_configuration      = { workspace = true, features = [
+  "cli",
+  "lang_css",
+  "lang_graphql",
+  "lang_html",
+  "lang_js",
+  "lang_json",
+  "lang_md",
+  "lang_yaml",
+  "plugins"
+] }
 biome_console            = { workspace = true }
-biome_css_analyze        = { workspace = true }
-biome_css_syntax         = { workspace = true }
+biome_css_analyze        = { workspace = true, optional = true }
+biome_css_syntax         = { workspace = true, optional = true }
 biome_deserialize        = { workspace = true, features = ["serde"] }
 biome_deserialize_macros = { workspace = true }
 biome_diagnostics        = { workspace = true, features = ["bpaf", "notify", "std"] }
@@ -31,14 +41,14 @@ biome_flags              = { workspace = true }
 biome_formatter          = { workspace = true }
 biome_fs                 = { workspace = true }
 biome_glob               = { workspace = true }
-biome_graphql_analyze    = { workspace = true }
-biome_graphql_syntax     = { workspace = true }
-biome_html_analyze       = { workspace = true }
+biome_graphql_analyze    = { workspace = true, optional = true }
+biome_graphql_syntax     = { workspace = true, optional = true }
+biome_html_analyze       = { workspace = true, optional = true }
 biome_html_formatter     = { workspace = true }
-biome_html_syntax        = { workspace = true }
-biome_js_analyze         = { workspace = true }
+biome_html_syntax        = { workspace = true, optional = true }
+biome_js_analyze         = { workspace = true, optional = true }
 biome_js_formatter       = { workspace = true }
-biome_js_syntax          = { workspace = true }
+biome_js_syntax          = { workspace = true, optional = true }
 biome_json_analyze       = { workspace = true }
 biome_json_factory       = { workspace = true }
 biome_json_formatter     = { workspace = true }
@@ -46,19 +56,19 @@ biome_json_parser        = { workspace = true }
 biome_json_syntax        = { workspace = true }
 biome_languages          = { workspace = true, features = ["lang_json"] }
 biome_lsp                = { workspace = true }
-biome_markdown_analyze   = { workspace = true }
-biome_markdown_syntax    = { workspace = true }
+biome_markdown_analyze   = { workspace = true, optional = true }
+biome_markdown_syntax    = { workspace = true, optional = true }
 biome_migrate            = { workspace = true }
 biome_module_graph       = { workspace = true }
 biome_package            = { workspace = true }
-biome_plugin_loader      = { workspace = true }
+biome_plugin_loader      = { workspace = true, optional = true }
 biome_resolver           = { workspace = true }
 biome_rowan              = { workspace = true }
 biome_rule_options       = { workspace = true }
-biome_service            = { workspace = true, features = ["stable"] }
+biome_service            = { workspace = true, features = ["lang_json"] }
 biome_text_edit          = { workspace = true }
-biome_yaml_analyze       = { workspace = true }
-biome_yaml_syntax        = { workspace = true }
+biome_yaml_analyze       = { workspace = true, optional = true }
+biome_yaml_syntax        = { workspace = true, optional = true }
 bpaf                     = { workspace = true, features = ["bright-color", "docgen"] }
 camino                   = { workspace = true }
 crossbeam                = { workspace = true }
@@ -115,8 +125,49 @@ tokio = { workspace = true, features = ["process"] }
 mimalloc = { workspace = true }
 
 [features]
-docgen   = ["bpaf/docgen"]
-unstable = []
+default        = ["stable"]
+docgen         = ["bpaf/docgen"]
+html_embeds    = ["biome_lsp/html_embeds", "biome_service/html_embeds"]
+js_embeds      = ["biome_lsp/js_embeds", "biome_service/js_embeds"]
+js_plugin      = ["biome_lsp/js_plugin", "biome_service/js_plugin"]
+lang_css       = ["biome_lsp/lang_css", "biome_service/lang_css", "dep:biome_css_analyze", "dep:biome_css_syntax"]
+lang_graphql   = [
+  "biome_lsp/lang_graphql",
+  "biome_service/lang_graphql",
+  "dep:biome_graphql_analyze",
+  "dep:biome_graphql_syntax"
+]
+lang_grit      = ["biome_lsp/lang_grit", "biome_service/lang_grit"]
+lang_html      = ["biome_lsp/lang_html", "biome_service/lang_html", "dep:biome_html_analyze", "dep:biome_html_syntax"]
+lang_js        = ["biome_lsp/lang_js", "biome_service/lang_js", "dep:biome_js_analyze", "dep:biome_js_syntax"]
+lang_md        = [
+  "biome_lsp/lang_md",
+  "biome_service/lang_md",
+  "dep:biome_markdown_analyze",
+  "dep:biome_markdown_syntax"
+]
+lang_yaml      = ["biome_lsp/lang_yaml", "biome_service/lang_yaml", "dep:biome_yaml_analyze", "dep:biome_yaml_syntax"]
+md_embeds      = ["biome_lsp/md_embeds", "biome_service/md_embeds"]
+module_graph   = ["biome_lsp/module_graph", "biome_service/module_graph"]
+plugins        = ["biome_lsp/plugins", "biome_service/plugins", "dep:biome_plugin_loader", "lang_grit"]
+stable         = [
+  "html_embeds",
+  "js_embeds",
+  "js_plugin",
+  "lang_css",
+  "lang_graphql",
+  "lang_grit",
+  "lang_html",
+  "lang_js",
+  "lang_md",
+  "lang_yaml",
+  "md_embeds",
+  "module_graph",
+  "plugins",
+  "type_inference"
+]
+type_inference = ["biome_lsp/type_inference", "biome_service/type_inference"]
+unstable       = []
 
 [lints]
 workspace = true

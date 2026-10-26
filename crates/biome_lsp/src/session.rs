@@ -11,12 +11,16 @@ use biome_diagnostics::{PrintDescription, Severity};
 use biome_fs::{BiomePath, normalize_path};
 use biome_line_index::WideEncoding;
 use biome_lsp_converters::{PositionEncoding, negotiated_encoding};
+#[cfg(feature = "plugins")]
 use biome_service::WorkspaceError;
 use biome_service::configuration::{ProjectScanComputer, load_configuration, load_editorconfig};
 use biome_service::db::DbState;
 use biome_service::diagnostics::ConfigurationOutsideProject;
+#[cfg(feature = "lang_js")]
 use biome_service::file_handlers::astro::AstroFileHandler;
+#[cfg(all(feature = "lang_js", feature = "lang_html"))]
 use biome_service::file_handlers::svelte::SvelteFileHandler;
+#[cfg(all(feature = "lang_js", feature = "lang_html"))]
 use biome_service::file_handlers::vue::VueFileHandler;
 use biome_service::projects::ProjectKey;
 use biome_service::settings::{EditorFeature, ModuleGraphResolutionKind};
@@ -534,7 +538,7 @@ impl Session {
 
     /// Get a [`Document`] matching the provided [`Uri`]
     ///
-    /// If document does not exist, result is [WorkspaceError::NotFound]
+    /// If document does not exist, result is [biome_service::WorkspaceError::NotFound]
     pub(crate) fn document(&self, url: &Uri) -> Option<Document> {
         self.documents.pin().get(url).cloned()
     }
@@ -758,8 +762,11 @@ impl Session {
                 None
             } else {
                 let get_start: Option<fn(&str) -> Option<u32>> = match biome_path.extension() {
+                    #[cfg(all(feature = "lang_js", feature = "lang_html"))]
                     Some("vue") => Some(VueFileHandler::start),
+                    #[cfg(feature = "lang_js")]
                     Some("astro") => Some(AstroFileHandler::start),
+                    #[cfg(all(feature = "lang_js", feature = "lang_html"))]
                     Some("svelte") => Some(SvelteFileHandler::start),
                     _ => None,
                 };
@@ -1504,13 +1511,16 @@ impl Session {
         self.insert_and_scan_project(project_key, project_path.into(), scan_kind, force)
             .await;
 
-        if let Err(WorkspaceError::PluginErrors(error)) = result {
+        #[cfg(feature = "plugins")]
+        if let Err(WorkspaceError::PluginErrors(error)) = &result {
             error!("Failed to load plugins: {error:?}");
             self.client
                 .log_message(MessageType::ERROR, format!("{error:?}"))
                 .await;
-            ConfigurationStatus::PluginError
-        } else if let Err(error) = result {
+            return ConfigurationStatus::PluginError;
+        }
+
+        if let Err(error) = result {
             error!("Failed to set workspace settings: {error}");
             self.client.log_message(MessageType::ERROR, &error).await;
             ConfigurationStatus::Error

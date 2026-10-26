@@ -6,8 +6,11 @@ use biome_fs::BiomePath;
 use biome_lsp_converters::from_proto;
 use biome_rowan::{TextLen, TextRange, TextSize};
 use biome_service::Workspace;
+#[cfg(feature = "lang_js")]
 use biome_service::file_handlers::astro::AstroFileHandler;
+#[cfg(all(feature = "lang_js", feature = "lang_html"))]
 use biome_service::file_handlers::svelte::SvelteFileHandler;
+#[cfg(all(feature = "lang_js", feature = "lang_html"))]
 use biome_service::file_handlers::vue::VueFileHandler;
 use biome_service::workspace::{
     CheckFileSizeParams, FeatureKind, FeaturesBuilder, FeaturesSupported, FileFeaturesResult,
@@ -72,6 +75,13 @@ pub(crate) fn format(
             inline_config: session.inline_config(),
         })?;
 
+    #[cfg_attr(
+        not(feature = "lang_js"),
+        expect(
+            unused_mut,
+            reason = "Only the JS-based Astro, Vue and Svelte handlers rewrite the output."
+        )
+    )]
     let mut output = printed.into_code();
     let input = session
         .workspace_for_request()
@@ -84,12 +94,15 @@ pub(crate) fn format(
     }
     if !file_features.supports_full_html_support() {
         match path.extension() {
+            #[cfg(feature = "lang_js")]
             Some("astro") => {
                 output = AstroFileHandler::output(input.as_str(), output.as_str());
             }
+            #[cfg(all(feature = "lang_js", feature = "lang_html"))]
             Some("vue") => {
                 output = VueFileHandler::output(input.as_str(), output.as_str());
             }
+            #[cfg(all(feature = "lang_js", feature = "lang_html"))]
             Some("svelte") => {
                 output = SvelteFileHandler::output(input.as_str(), output.as_str());
             }
@@ -165,9 +178,12 @@ pub(crate) fn format_range(
             path: path.clone(),
         })?;
 
-    let offset = match path.extension() {
+    let offset: Option<u32> = match path.extension() {
+        #[cfg(all(feature = "lang_js", feature = "lang_html"))]
         Some("vue") => VueFileHandler::start(content.as_str()),
+        #[cfg(feature = "lang_js")]
         Some("astro") => AstroFileHandler::start(content.as_str()),
+        #[cfg(all(feature = "lang_js", feature = "lang_html"))]
         Some("svelte") => SvelteFileHandler::start(content.as_str()),
         _ => None,
     };

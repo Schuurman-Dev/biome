@@ -1,5 +1,6 @@
 mod config;
 mod file;
+#[cfg(feature = "plugins")]
 mod plugins;
 
 use self::{
@@ -10,6 +11,7 @@ use self::{
 };
 use super::{InspectSubCommand, validate_configuration_diagnostics};
 use crate::commands::inspect::file::{InspectFile, inspect_file};
+#[cfg(feature = "plugins")]
 use crate::commands::inspect::plugins::inspect_plugins;
 use crate::{CliDiagnostic, CliSession, cli_options::CliOptions};
 use biome_configuration::BiomeDiagnostic;
@@ -38,9 +40,15 @@ pub(crate) fn inspect(
     sub_command: InspectSubCommand,
 ) -> Result<(), CliDiagnostic> {
     match sub_command {
+        #[cfg(feature = "plugins")]
         InspectSubCommand::Plugins { path } => {
             inspect_plugins(session, cli_options, path.as_deref())
         }
+        #[cfg(not(feature = "plugins"))]
+        InspectSubCommand::Plugins { .. } => Err(CliDiagnostic::inspection_error(
+            markup! { "This build of Biome doesn't include plugin support." }.to_owned(),
+            InspectionAdvice(Vec::new()),
+        )),
         InspectSubCommand::Config { key, path } => {
             ConfigInspectionCommand::new(session, cli_options, key, path)?.execute()
         }
@@ -476,6 +484,13 @@ impl InspectionDiagnostic {
 
 /// One ordered advice entry rendered as either a log line or a source code frame.
 #[derive(Debug)]
+#[cfg_attr(
+    not(feature = "plugins"),
+    expect(
+        dead_code,
+        reason = "`List` and `Error` are built only by `inspect plugins`."
+    )
+)]
 enum AdviceLine {
     List(Vec<MarkupBuf>),
     Error(Error),
