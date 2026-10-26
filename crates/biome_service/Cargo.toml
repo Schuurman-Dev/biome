@@ -239,6 +239,7 @@ stable         = [
   "lang_css",
   "lang_graphql",
   "lang_js",
+  "lang_json",
   "lang_md",
   "lang_yaml",
   "md_embeds",
