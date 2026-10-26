@@ -3,13 +3,19 @@ use crate::runner::execution::Execution;
 use crate::{DiagnosticsPayload, TraversalSummary};
 use biome_analyze::{GroupCategory, Queryable, RegistryVisitor, Rule, RuleCategory, RuleGroup};
 use biome_console::markup;
+#[cfg(feature = "lang_css")]
 use biome_css_syntax::CssLanguage;
 use biome_diagnostics::{Error, Location, PrintDescription, Severity, display::SourceFile};
+#[cfg(feature = "lang_graphql")]
 use biome_graphql_syntax::GraphqlLanguage;
+#[cfg(feature = "lang_html")]
 use biome_html_syntax::HtmlLanguage;
+#[cfg(feature = "lang_js")]
 use biome_js_syntax::JsLanguage;
 use biome_json_syntax::JsonLanguage;
+#[cfg(feature = "lang_md")]
 use biome_markdown_syntax::MarkdownLanguage;
+#[cfg(feature = "lang_yaml")]
 use biome_yaml_syntax::YamlLanguage;
 use camino::{Utf8Path, Utf8PathBuf};
 use serde::Serialize;
@@ -49,12 +55,18 @@ impl<'a> SarifReporterVisitor<'a> {
             rule_descriptions: BTreeMap::new(),
         };
 
+        #[cfg(feature = "lang_graphql")]
         biome_graphql_analyze::visit_registry(&mut visitor);
+        #[cfg(feature = "lang_html")]
         biome_html_analyze::visit_registry(&mut visitor);
+        #[cfg(feature = "lang_css")]
         biome_css_analyze::visit_registry(&mut visitor);
         biome_json_analyze::visit_registry(&mut visitor);
+        #[cfg(feature = "lang_js")]
         biome_js_analyze::visit_registry(&mut visitor);
+        #[cfg(feature = "lang_md")]
         biome_markdown_analyze::visit_registry(&mut visitor);
+        #[cfg(feature = "lang_yaml")]
         biome_yaml_analyze::visit_registry(&mut visitor);
 
         visitor
@@ -71,6 +83,7 @@ impl<'a> SarifReporterVisitor<'a> {
     }
 }
 
+#[cfg(feature = "lang_js")]
 impl RegistryVisitor<JsLanguage> for SarifReporterVisitor<'_> {
     fn record_rule<R>(&mut self)
     where
@@ -98,6 +111,7 @@ impl RegistryVisitor<JsonLanguage> for SarifReporterVisitor<'_> {
     }
 }
 
+#[cfg(feature = "lang_css")]
 impl RegistryVisitor<CssLanguage> for SarifReporterVisitor<'_> {
     fn record_rule<R>(&mut self)
     where
@@ -112,6 +126,7 @@ impl RegistryVisitor<CssLanguage> for SarifReporterVisitor<'_> {
     }
 }
 
+#[cfg(feature = "lang_graphql")]
 impl RegistryVisitor<GraphqlLanguage> for SarifReporterVisitor<'_> {
     fn record_rule<R>(&mut self)
     where
@@ -126,6 +141,7 @@ impl RegistryVisitor<GraphqlLanguage> for SarifReporterVisitor<'_> {
     }
 }
 
+#[cfg(feature = "lang_html")]
 impl RegistryVisitor<HtmlLanguage> for SarifReporterVisitor<'_> {
     fn record_rule<R>(&mut self)
     where
@@ -140,6 +156,7 @@ impl RegistryVisitor<HtmlLanguage> for SarifReporterVisitor<'_> {
     }
 }
 
+#[cfg(feature = "lang_md")]
 impl RegistryVisitor<MarkdownLanguage> for SarifReporterVisitor<'_> {
     fn record_rule<R>(&mut self)
     where
@@ -154,6 +171,7 @@ impl RegistryVisitor<MarkdownLanguage> for SarifReporterVisitor<'_> {
     }
 }
 
+#[cfg(feature = "lang_yaml")]
 impl RegistryVisitor<YamlLanguage> for SarifReporterVisitor<'_> {
     fn record_rule<R>(&mut self)
     where
