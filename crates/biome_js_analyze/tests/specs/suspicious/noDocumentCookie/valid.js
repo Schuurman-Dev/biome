@@ -16,3 +16,14 @@ cookieStore
 function document_is_not_global1(document){
     document.cookie = "bar=foo"
 }
+
+function variable_initialized_with_itself(){
+    const doc = doc;
+    doc.cookie = "bar=foo"
+}
+
+function variables_initialized_with_each_other(){
+    const foo = bar;
+    const bar = foo;
+    foo.cookie = "bar=foo"
+}
