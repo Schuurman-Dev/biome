@@ -53,13 +53,43 @@ jobs:
           persist-credentials: false
       - name: Install toolchain
         uses: moonrepo/setup-rust@abb2d32350334249b178c401e5ec5836e0cd88d3 # v1.3.0
-        with:
-          bins: cargo-hack
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Check each feature on its own
-        run: cargo hack check -p biome_cli --each-feature --exclude-features docgen,unstable
       - name: Build with only JavaScript
         run: cargo build -p biome_cli --bin biome --no-default-features --features lang_js
       - name: Test the JavaScript-only build
         run: node fork/test-reduced-build.mjs target/debug/biome
+
+  # Biome must compile with any choice of languages; see fork/check-features.mjs.
+  features:
+    name: Features (${{ matrix.name }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: each on its own
+            args: single
+          - name: pairs 1/3
+            args: pairs --partition 1/3
+          - name: pairs 2/3
+            args: pairs --partition 2/3
+          - name: pairs 3/3
+            args: pairs --partition 3/3
+    steps:
+      - name: Free disk space
+        # Each combination compiles its own copy of the crates.
+        run: sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install toolchain
+        uses: moonrepo/setup-rust@abb2d32350334249b178c401e5ec5836e0cd88d3 # v1.3.0
+        with:
+          components: clippy
+          bins: cargo-hack
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check the combinations
+        run: node fork/check-features.mjs ${{ matrix.args }}

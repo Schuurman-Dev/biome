@@ -92,8 +92,10 @@ binary (Windows, Intel macOS, musl Linux such as Alpine) still installs, since t
 packages are optional and carry `os`/`cpu`/`libc`; it just can't run `biome`.
 
 `.github/workflows/fork_ci.yml` runs fmt, clippy and the tests of the changed crates on every push
-to `feat/lint-baseline`. It also checks that each language feature compiles on its own, and runs
-`test-reduced-build.mjs` against a JavaScript-only build.
+to `feat/lint-baseline`. It also runs `test-reduced-build.mjs` against a JavaScript-only build,
+and `check-features.mjs`, which checks that Biome compiles with every language feature on its own
+and every two together (clippy for single features, `cargo check` for pairs). New features are
+included automatically. The script needs `cargo-hack` and a lot of disk, so it's meant for CI.
 
 To build and publish by hand instead:
 
