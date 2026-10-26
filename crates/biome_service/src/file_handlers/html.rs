@@ -17,11 +17,13 @@ use crate::configuration::to_analyzer_rules_by_indices;
 use crate::db::WorkspaceDb;
 #[cfg(feature = "html_embeds")]
 use crate::embed::EmbedContent;
+#[cfg(all(feature = "html_embeds", feature = "lang_css"))]
+use crate::file_handlers::css;
 use crate::file_handlers::html::go_to::{resolve_binding_html, resolve_definition};
 #[cfg(feature = "html_embeds")]
 use crate::file_handlers::html::parse_embedded_nodes::parse_embedded_nodes;
 #[cfg(feature = "html_embeds")]
-use crate::file_handlers::{css, javascript, json};
+use crate::file_handlers::{javascript, json};
 use crate::settings::{
     OverrideSettings, SettingsIdentity, SettingsWithEditor, check_feature_activity,
     check_override_feature_activity, finalize_analyzer_options,
@@ -46,9 +48,9 @@ use biome_configuration::html::{
     HtmlLinterConfiguration, HtmlLinterEnabled, HtmlParseInterpolation, HtmlParseVue,
     HtmlParserConfiguration,
 };
-#[cfg(feature = "html_embeds")]
+#[cfg(all(feature = "html_embeds", feature = "lang_css"))]
 use biome_css_parser::{CssParserOptions, parse_css};
-#[cfg(feature = "html_embeds")]
+#[cfg(all(feature = "html_embeds", feature = "lang_css"))]
 use biome_css_syntax::CssLanguage;
 #[cfg(feature = "html_embeds")]
 use biome_formatter::rowan::FormatElement;
@@ -914,7 +916,9 @@ fn format_embedded(
             }
             // The CSS formatter prints each declaration of a `style` attribute
             // on its own line.
+            #[cfg(feature = "lang_css")]
             DocumentFileSource::Css(_) if attribute_snippet.is_some() => return None,
+            #[cfg(feature = "lang_css")]
             DocumentFileSource::Css(_) => {
                 let css_options = css::resolve_format_options(
                     biome_path,
@@ -1140,29 +1144,27 @@ pub(super) fn lint_with_inspector(
             };
             let offset = snippet.content_offset();
             let snippet_params = params.for_snippet(&snippet, language);
-            let analyzer = if language.to_js_file_source().is_some() {
-                LintSnippetAnalyzer::new(
+            let analyzer = match language {
+                DocumentFileSource::Js(_) => LintSnippetAnalyzer::new(
                     snippet_params,
                     offset,
                     &biome_js_analyze::METADATA,
                     javascript::lint_with_inspector,
-                )
-            } else if language.to_css_file_source().is_some() {
-                LintSnippetAnalyzer::new(
+                ),
+                #[cfg(feature = "lang_css")]
+                DocumentFileSource::Css(_) => LintSnippetAnalyzer::new(
                     snippet_params,
                     offset,
                     &biome_css_analyze::METADATA,
                     css::lint_with_inspector,
-                )
-            } else if language.to_json_file_source().is_some() {
-                LintSnippetAnalyzer::new(
+                ),
+                DocumentFileSource::Json(_) => LintSnippetAnalyzer::new(
                     snippet_params,
                     offset,
                     &biome_json_analyze::METADATA,
                     json::lint_with_inspector,
-                )
-            } else {
-                continue;
+                ),
+                _ => continue,
             };
             snippets.push(Box::new(analyzer));
         }
@@ -1737,7 +1739,7 @@ pub(crate) fn js_verbatim_ranges(code: &str) -> Vec<TextRange> {
 /// Returns byte ranges in `code` whose content must not receive an extra
 /// indentation prefix during re-indentation: multi-line block comments in
 /// CSS source.
-#[cfg(feature = "html_embeds")]
+#[cfg(all(feature = "html_embeds", feature = "lang_css"))]
 pub(crate) fn css_verbatim_ranges(code: &str) -> Vec<TextRange> {
     let parsed = parse_css(
         code,
@@ -1812,9 +1814,9 @@ fn is_component_element(attr: &HtmlAttribute) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        content_indent_prefix, css_verbatim_ranges, js_verbatim_ranges, push_reindented_code,
-    };
+    #[cfg(feature = "lang_css")]
+    use super::css_verbatim_ranges;
+    use super::{content_indent_prefix, js_verbatim_ranges, push_reindented_code};
     use biome_rowan::TextRange;
 
     fn reindent_embedded_code(code: &str, indent: &str, verbatim_ranges: &[TextRange]) -> String {
@@ -1879,6 +1881,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "lang_css")]
     #[test]
     fn reindent_skips_css_block_comment_continuation_lines() {
         let code = "/* first line\n   continuation */\n.foo { color: red; }";

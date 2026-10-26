@@ -10,7 +10,14 @@ use biome_rowan::{TextRange, TextSize, TokenText};
 /// The text content and position information for an embed site.
 #[derive(Clone, Debug)]
 #[cfg_attr(
-    not(any(feature = "html_embeds", feature = "js_embeds", feature = "md_embeds")),
+    not(any(
+        feature = "html_embeds",
+        feature = "md_embeds",
+        all(
+            feature = "js_embeds",
+            any(feature = "lang_css", feature = "lang_graphql")
+        )
+    )),
     expect(
         dead_code,
         reason = "Embed content fields are read only when embed features are enabled."

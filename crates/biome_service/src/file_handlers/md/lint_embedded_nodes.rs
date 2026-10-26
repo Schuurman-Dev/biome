@@ -1,6 +1,14 @@
-use crate::file_handlers::{
-    LintParams, LintResults, LintSnippetAnalyzer, css, graphql, html, javascript, json, md, yaml,
-};
+#[cfg(feature = "lang_css")]
+use crate::file_handlers::css;
+#[cfg(feature = "lang_graphql")]
+use crate::file_handlers::graphql;
+#[cfg(feature = "lang_html")]
+use crate::file_handlers::html;
+#[cfg(feature = "lang_js")]
+use crate::file_handlers::javascript;
+#[cfg(feature = "lang_yaml")]
+use crate::file_handlers::yaml;
+use crate::file_handlers::{LintParams, LintResults, LintSnippetAnalyzer, json, md};
 use biome_analyze::{Never, SnippetAnalyzer};
 use biome_languages::DocumentFileSource;
 
@@ -30,6 +38,7 @@ pub(super) fn snippet_analyzers<'a>(
         let offset = snippet.content_offset();
         let snippet_params = params.for_snippet(&snippet, language);
         let analyzer = match language {
+            #[cfg(feature = "lang_js")]
             DocumentFileSource::Js(_) => LintSnippetAnalyzer::new(
                 snippet_params,
                 offset,
@@ -42,24 +51,28 @@ pub(super) fn snippet_analyzers<'a>(
                 &biome_json_analyze::METADATA,
                 json::lint_with_inspector,
             ),
+            #[cfg(feature = "lang_css")]
             DocumentFileSource::Css(_) => LintSnippetAnalyzer::new(
                 snippet_params,
                 offset,
                 &biome_css_analyze::METADATA,
                 css::lint_with_inspector,
             ),
+            #[cfg(feature = "lang_graphql")]
             DocumentFileSource::Graphql(_) => LintSnippetAnalyzer::new(
                 snippet_params,
                 offset,
                 &biome_graphql_analyze::METADATA,
                 graphql::lint_with_inspector,
             ),
+            #[cfg(feature = "lang_html")]
             DocumentFileSource::Html(_) => LintSnippetAnalyzer::new(
                 snippet_params,
                 offset,
                 &biome_html_analyze::METADATA,
                 html::lint_with_inspector,
             ),
+            #[cfg(feature = "lang_yaml")]
             DocumentFileSource::Yaml(_) => LintSnippetAnalyzer::new(
                 snippet_params,
                 offset,
@@ -72,9 +85,7 @@ pub(super) fn snippet_analyzers<'a>(
                 &biome_markdown_analyze::METADATA,
                 md::lint_with_inspector,
             ),
-            DocumentFileSource::Grit(_)
-            | DocumentFileSource::Ignore
-            | DocumentFileSource::Unknown => continue,
+            _ => continue,
         };
         analyzers.push(Box::new(analyzer) as _);
     }

@@ -125,9 +125,9 @@ mimalloc = { workspace = true }
 
 [features]
 # To parse snippets and embeds inside HTML files
-html_embeds    = ["dep:biome_embeds", "lang_css", "lang_html", "lang_js", "lang_json"]
+html_embeds    = ["dep:biome_embeds", "lang_html", "lang_js"]
 # JavaScript embeds
-js_embeds      = ["lang_css", "lang_graphql", "lang_js"]
+js_embeds      = ["lang_js"]
 js_plugin      = ["biome_plugin_loader/js_plugin", "plugins"]
 lang_css       = [
   "biome_configuration/lang_css",
@@ -194,7 +194,7 @@ lang_yaml      = [
   "dep:biome_yaml_parser",
   "dep:biome_yaml_syntax"
 ]
-md_embeds      = ["lang_css", "lang_graphql", "lang_grit", "lang_html", "lang_js", "lang_json", "lang_md", "lang_yaml"]
+md_embeds      = ["lang_md"]
 # TODO does it need lang_js, lang_html and lang_css? To verify
 module_graph   = ["dep:biome_module_graph"]
 plugins        = ["biome_configuration/plugins", "dep:biome_plugin_loader", "lang_grit"]
@@ -239,6 +239,7 @@ stable         = [
   "lang_css",
   "lang_graphql",
   "lang_js",
+  "lang_json",
   "lang_md",
   "lang_yaml",
   "md_embeds",

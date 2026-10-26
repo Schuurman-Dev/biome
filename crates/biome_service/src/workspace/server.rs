@@ -1527,6 +1527,7 @@ impl WorkspaceServerWithDb<'_> {
                                     DocumentFileSource::Js(_) => {
                                         crate::file_handlers::html::js_verbatim_ranges(trimmed)
                                     }
+                                    #[cfg(feature = "lang_css")]
                                     DocumentFileSource::Css(_) => {
                                         crate::file_handlers::html::css_verbatim_ranges(trimmed)
                                     }

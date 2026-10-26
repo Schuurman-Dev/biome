@@ -2,10 +2,21 @@ use super::parse_embedded_nodes::parse_snippet_code;
 use super::{format, format_embeds_enabled, resolve_format_options};
 use crate::WorkspaceError;
 use crate::db::WorkspaceDb;
-use crate::file_handlers::{
-    ParsedOrigin, ParsedSnippetOrigin, css, graphql, grit, html, javascript, json, yaml,
-};
+#[cfg(feature = "lang_css")]
+use crate::file_handlers::css;
+#[cfg(feature = "lang_graphql")]
+use crate::file_handlers::graphql;
+#[cfg(feature = "lang_grit")]
+use crate::file_handlers::grit;
+#[cfg(feature = "lang_html")]
+use crate::file_handlers::html;
+#[cfg(feature = "lang_js")]
+use crate::file_handlers::javascript;
+#[cfg(feature = "lang_yaml")]
+use crate::file_handlers::yaml;
+use crate::file_handlers::{ParsedOrigin, ParsedSnippetOrigin, json};
 use crate::settings::{ServiceLanguage, SettingsWithEditor};
+#[cfg(feature = "lang_css")]
 use biome_css_formatter::CssFormatLanguage;
 use biome_formatter::rowan::Printed;
 use biome_formatter::rowan::prelude::{
@@ -16,9 +27,13 @@ use biome_formatter::{
     SimpleFormatOptions, TrailingNewline, normalize_newlines, write,
 };
 use biome_fs::BiomePath;
+#[cfg(feature = "lang_graphql")]
 use biome_graphql_formatter::GraphqlFormatLanguage;
+#[cfg(feature = "lang_grit")]
 use biome_grit_formatter::GritFormatLanguage;
+#[cfg(feature = "lang_html")]
 use biome_html_formatter::HtmlFormatLanguage;
+#[cfg(feature = "lang_js")]
 use biome_js_formatter::JsFormatLanguage;
 use biome_json_formatter::JsonFormatLanguage;
 use biome_languages::DocumentFileSource;
@@ -28,6 +43,7 @@ use biome_markdown_syntax::{
 };
 use biome_parser::AnyParse;
 use biome_rowan::{AstNode, AstNodeList, TextRange, TextSize};
+#[cfg(feature = "lang_yaml")]
 use biome_yaml_formatter::YamlFormatLanguage;
 use rustc_hash::FxHashMap;
 
@@ -219,6 +235,7 @@ fn format_snippet(
 ) -> Option<Document> {
     let trailing_newline = TrailingNewline::from(false);
     match file_source {
+        #[cfg(feature = "lang_js")]
         DocumentFileSource::Js(_) => {
             let options =
                 javascript::resolve_format_options(path, &file_source, settings, workspace_db)
@@ -230,22 +247,26 @@ fn format_snippet(
                 .with_trailing_newline(trailing_newline);
             format_with_language(path, settings, parse, JsonFormatLanguage::new(options))
         }
+        #[cfg(feature = "lang_css")]
         DocumentFileSource::Css(_) => {
             let options = css::resolve_format_options(path, &file_source, settings, workspace_db)
                 .with_trailing_newline(trailing_newline);
             format_with_language(path, settings, parse, CssFormatLanguage::new(options))
         }
+        #[cfg(feature = "lang_graphql")]
         DocumentFileSource::Graphql(_) => {
             let options =
                 graphql::resolve_format_options(path, &file_source, settings, workspace_db)
                     .with_trailing_newline(trailing_newline);
             format_with_language(path, settings, parse, GraphqlFormatLanguage::new(options))
         }
+        #[cfg(feature = "lang_html")]
         DocumentFileSource::Html(_) => {
             let options = html::resolve_format_options(path, &file_source, settings, workspace_db)
                 .with_trailing_newline(trailing_newline);
             format_with_language(path, settings, parse, HtmlFormatLanguage::new(options))
         }
+        #[cfg(feature = "lang_yaml")]
         DocumentFileSource::Yaml(_) => {
             let options = yaml::resolve_format_options(path, &file_source, settings, workspace_db)
                 .with_trailing_newline(trailing_newline);
@@ -256,12 +277,13 @@ fn format_snippet(
                 .with_trailing_newline(trailing_newline);
             format_markdown_snippet(path, settings, parse, MdFormatLanguage::new(options))
         }
+        #[cfg(feature = "lang_grit")]
         DocumentFileSource::Grit(_) => {
             let options = grit::resolve_format_options(path, &file_source, settings, workspace_db)
                 .with_trailing_newline(trailing_newline);
             format_with_language(path, settings, parse, GritFormatLanguage::new(options))
         }
-        DocumentFileSource::Ignore | DocumentFileSource::Unknown => None,
+        _ => None,
     }
 }
 

@@ -5,7 +5,9 @@ use crate::embed::html::{
 };
 use crate::file_handlers::html::{EmbedParseContext, ParsedEmbed, is_component_element};
 use crate::file_handlers::{DocumentFileSource, ParseEmbedResult, ParseEmbeddedParams};
+#[cfg(feature = "lang_css")]
 use biome_css_parser::{CssModulesKind, parse_css_with_offset_and_cache};
+#[cfg(feature = "lang_css")]
 use biome_css_syntax::{AnyCssRoot, CssFunction, CssLanguage, CssString};
 use biome_html_syntax::{
     AnyAstroDirective, AnySvelteBlock, AnySvelteBlockItem, AnySvelteDirective,
@@ -19,10 +21,13 @@ use biome_js_parser::parse_js_with_offset_and_cache;
 use biome_js_syntax::JsLanguage;
 use biome_json_parser::parse_json_with_offset_and_cache;
 use biome_json_syntax::JsonLanguage;
+#[cfg(feature = "lang_css")]
 use biome_languages::css::{CssEmbeddingKind, EmbeddingHtmlKind, EmbeddingStyleApplicability};
 use biome_languages::html::{HtmlTextExpressions, HtmlVariant};
 use biome_languages::javascript::{JsEmbeddingKind, SvelteEmbeddingKind, SvelteFileKind};
-use biome_languages::{CssFileSource, HtmlFileSource, JsFileSource, JsonFileSource};
+#[cfg(feature = "lang_css")]
+use biome_languages::{CssFileSource, HtmlFileSource};
+use biome_languages::{JsFileSource, JsonFileSource};
 use biome_parser::AnyParse;
 use biome_rowan::{AstNode, AstNodeList, AstSeparatedList};
 
@@ -173,6 +178,13 @@ pub(crate) fn parse_embedded_nodes(params: ParseEmbeddedParams) -> ParseEmbedRes
 
             // Pass 1: elements via registry, collecting JS file sources
             let mut embedded_file_source = JsFileSource::js_module();
+            #[cfg_attr(
+                not(feature = "lang_css"),
+                expect(
+                    unused_mut,
+                    reason = "Only `<style>` contents add `v-bind()` candidates."
+                )
+            )]
             let mut css_v_bind_candidates = vec![];
             let mut generic_candidates = vec![];
             for element in elements {
@@ -192,6 +204,7 @@ pub(crate) fn parse_embedded_nodes(params: ParseEmbeddedParams) -> ParseEmbedRes
                             generic_candidates.push(candidate);
                         }
                     }
+                    #[cfg(feature = "lang_css")]
                     if file_source.to_css_file_source().is_some() {
                         css_v_bind_candidates
                             .extend(build_vue_css_v_bind_candidates(&parse, &content));
@@ -1023,6 +1036,7 @@ fn build_html_candidate(element: &HtmlElement) -> Option<EmbedCandidate> {
     })
 }
 
+#[cfg(feature = "lang_css")]
 fn build_vue_css_v_bind_candidates(
     parse: &AnyParse,
     style_content: &EmbedContent,
@@ -1036,6 +1050,7 @@ fn build_vue_css_v_bind_candidates(
         .collect()
 }
 
+#[cfg(feature = "lang_css")]
 fn build_vue_css_v_bind_candidate(
     function: &CssFunction,
     style_content: &EmbedContent,
@@ -1100,6 +1115,7 @@ fn merge_js_file_source(a: JsFileSource, b: JsFileSource) -> JsFileSource {
     }
 }
 
+#[cfg(feature = "lang_css")]
 fn embedded_css_file_source(
     host_file_source: &HtmlFileSource,
     candidate: &EmbedCandidate,
@@ -1345,6 +1361,7 @@ fn parse_matched_embed(
             })
         }
 
+        #[cfg(feature = "lang_css")]
         GuestLanguage::Css => {
             let css_source = embedded_css_file_source(ctx.host_file_source, candidate);
             let doc_source = DocumentFileSource::Css(css_source);
@@ -1372,6 +1389,10 @@ fn parse_matched_embed(
                 js_file_source: None,
             })
         }
+
+        // Without the CSS language, `<style>` contents stay plain HTML text.
+        #[cfg(not(feature = "lang_css"))]
+        GuestLanguage::Css => None,
 
         GuestLanguage::Json => {
             let doc_source = DocumentFileSource::Json(JsonFileSource::json());

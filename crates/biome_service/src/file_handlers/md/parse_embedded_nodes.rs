@@ -243,7 +243,7 @@ fn parse_code(
         DocumentFileSource::Yaml(_) => {
             parse_yaml_with_offset_and_cache(code, offset, context.cache).into()
         }
-        DocumentFileSource::Ignore | DocumentFileSource::Unknown => return None,
+        _ => return None,
     };
 
     Some(parse)
