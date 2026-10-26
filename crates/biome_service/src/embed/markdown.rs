@@ -1,7 +1,10 @@
 use super::EmbedContent;
 use biome_languages::DocumentFileSource;
+#[cfg(feature = "lang_html")]
 use biome_languages::HtmlFileSource;
+#[cfg(feature = "lang_yaml")]
 use biome_languages::YamlFileSource;
+#[cfg(feature = "lang_html")]
 use biome_languages::html::HtmlEmbeddingKind;
 use biome_rowan::Text;
 use biome_string_case::StrLikeExtension;
@@ -40,13 +43,19 @@ pub(crate) struct EmbedDetectorsRegistry;
 impl EmbedDetectorsRegistry {
     pub(crate) fn detect_match(candidate: &EmbedCandidate) -> Option<EmbedMatch> {
         let file_source = match candidate {
-            EmbedCandidate::Frontmatter { .. } => YamlFileSource::yaml().into(),
+            EmbedCandidate::Frontmatter { .. } => cfg_select! {
+                feature = "lang_yaml" => YamlFileSource::yaml().into(),
+                _ => return None,
+            },
             EmbedCandidate::CodeBlock { info_string, .. } => {
                 resolve_code_block_language(info_string.text())?
             }
-            EmbedCandidate::HtmlBlock { .. } => HtmlFileSource::html()
-                .with_embedding_kind(HtmlEmbeddingKind::MarkdownBlock)
-                .into(),
+            EmbedCandidate::HtmlBlock { .. } => cfg_select! {
+                feature = "lang_html" => HtmlFileSource::html()
+                    .with_embedding_kind(HtmlEmbeddingKind::MarkdownBlock)
+                    .into(),
+                _ => return None,
+            },
         };
         Some(EmbedMatch { file_source })
     }
