@@ -70,7 +70,7 @@ quick-junit              = "0.6.0"
 rayon                    = { workspace = true }
 regex                    = { workspace = true }
 rustc-hash               = { workspace = true }
-self_update              = { version = "1.2.0", default-features = false, features = ["github", "rustls", "ureq"] }
+self_update              = { version = "1.2.0", default-features = false, features = ["github", "rustls", "ureq"], optional = true }
 serde                    = { workspace = true, features = ["derive"] }
 serde_json               = { workspace = true }
 smallvec                 = { workspace = true }
@@ -89,7 +89,7 @@ tracing                  = { workspace = true }
 tracing-appender         = "0.2.4"
 tracing-subscriber       = { workspace = true, features = ["env-filter", "json"] }
 tracing-tree             = "0.4.1"
-ureq                     = { workspace = true }
+ureq                     = { workspace = true, optional = true }
 
 [dev-dependencies]
 biome_css_formatter  = { path = "../biome_css_formatter" }
@@ -115,8 +115,11 @@ tokio = { workspace = true, features = ["process"] }
 mimalloc = { workspace = true }
 
 [features]
-docgen   = ["bpaf/docgen"]
-unstable = []
+default      = ["self_upgrade"]
+docgen       = ["bpaf/docgen"]
+# `biome upgrade` for standalone and Homebrew installs
+self_upgrade = ["dep:self_update", "dep:ureq"]
+unstable     = []
 
 [lints]
 workspace = true

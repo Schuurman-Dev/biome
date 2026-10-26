@@ -70,7 +70,13 @@ impl<'app> CliSession<'app> {
     pub fn run(self, command: BiomeCommand) -> Result<(), CliDiagnostic> {
         match command {
             BiomeCommand::Version(_) => commands::version::full_version(self),
-            BiomeCommand::Upgrade => commands::upgrade::upgrade(self),
+            BiomeCommand::Upgrade => cfg_select! {
+                feature = "self_upgrade" => commands::upgrade::upgrade(self),
+                _ => Err(CliDiagnostic::upgrade_error(
+                    "This build of Biome doesn't include `biome upgrade`. Upgrade it the same way you installed it.",
+                    None,
+                )),
+            },
             BiomeCommand::Rage(cli_options, _, daemon_logs, formatter, linter) => {
                 commands::rage::rage(self, &cli_options, daemon_logs, formatter, linter)
             }
