@@ -63,6 +63,7 @@ pub(crate) mod lint;
 pub(crate) mod migrate;
 pub(crate) mod rage;
 pub(crate) mod search;
+#[cfg(feature = "self_upgrade")]
 pub(crate) mod upgrade;
 pub(crate) mod version;
 

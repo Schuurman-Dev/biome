@@ -80,7 +80,7 @@ quick-junit              = "0.6.0"
 rayon                    = { workspace = true }
 regex                    = { workspace = true }
 rustc-hash               = { workspace = true }
-self_update              = { version = "1.2.0", default-features = false, features = ["github", "rustls", "ureq"] }
+self_update              = { version = "1.2.0", default-features = false, features = ["github", "rustls", "ureq"], optional = true }
 serde                    = { workspace = true, features = ["derive"] }
 serde_json               = { workspace = true }
 smallvec                 = { workspace = true }
@@ -99,7 +99,7 @@ tracing                  = { workspace = true }
 tracing-appender         = "0.2.4"
 tracing-subscriber       = { workspace = true, features = ["env-filter", "json"] }
 tracing-tree             = "0.4.1"
-ureq                     = { workspace = true }
+ureq                     = { workspace = true, optional = true }
 
 [dev-dependencies]
 biome_css_formatter  = { path = "../biome_css_formatter" }
@@ -125,7 +125,7 @@ tokio = { workspace = true, features = ["process"] }
 mimalloc = { workspace = true }
 
 [features]
-default        = ["stable"]
+default        = ["self_upgrade", "stable"]
 docgen         = ["bpaf/docgen"]
 html_embeds    = ["biome_lsp/html_embeds", "biome_service/html_embeds"]
 js_embeds      = ["biome_lsp/js_embeds", "biome_service/js_embeds"]
@@ -150,6 +150,8 @@ lang_yaml      = ["biome_lsp/lang_yaml", "biome_service/lang_yaml", "dep:biome_y
 md_embeds      = ["biome_lsp/md_embeds", "biome_service/md_embeds"]
 module_graph   = ["biome_lsp/module_graph", "biome_service/module_graph"]
 plugins        = ["biome_lsp/plugins", "biome_service/plugins", "dep:biome_plugin_loader", "lang_grit"]
+# `biome upgrade` for standalone and Homebrew installs
+self_upgrade   = ["dep:self_update", "dep:ureq"]
 stable         = [
   "html_embeds",
   "js_embeds",
