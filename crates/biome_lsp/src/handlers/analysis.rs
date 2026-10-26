@@ -14,8 +14,11 @@ use biome_line_index::LineIndex;
 use biome_lsp_converters::from_proto;
 use biome_rowan::{TextRange, TextSize};
 use biome_service::Workspace;
+#[cfg(feature = "lang_js")]
 use biome_service::file_handlers::astro::AstroFileHandler;
+#[cfg(all(feature = "lang_js", feature = "lang_html"))]
 use biome_service::file_handlers::svelte::SvelteFileHandler;
+#[cfg(all(feature = "lang_js", feature = "lang_html"))]
 use biome_service::file_handlers::vue::VueFileHandler;
 use biome_service::workspace::{
     CheckFileSizeParams, FeaturesBuilder, FileFeaturesResult, FixFileMode, FixFileParams,
@@ -141,7 +144,7 @@ pub(crate) fn code_actions(
     let position_encoding = session.position_encoding();
 
     let diagnostics = params.context.diagnostics;
-    let offset = if file_features.supports_full_html_support() {
+    let offset: Option<u32> = if file_features.supports_full_html_support() {
         // The workspace analyzes the whole document, so the cursor range is
         // already in the coordinates the workspace expects.
         None
@@ -149,6 +152,13 @@ pub(crate) fn code_actions(
         // TODO: remove this once legacy HTML-ish support is removed
         // The workspace analyzes only the script, so the cursor range must be
         // made relative to the start of the script.
+        #[cfg_attr(
+            not(feature = "lang_js"),
+            expect(
+                unused_variables,
+                reason = "Only the JS-based Astro, Vue and Svelte handlers read the content."
+            )
+        )]
         let content = session
             .workspace_for_request()
             .get_file_content(GetFileContentParams {
@@ -156,8 +166,11 @@ pub(crate) fn code_actions(
                 path: path.clone(),
             })?;
         match path.extension() {
+            #[cfg(all(feature = "lang_js", feature = "lang_html"))]
             Some("vue") => VueFileHandler::start(content.as_str()),
+            #[cfg(feature = "lang_js")]
             Some("astro") => AstroFileHandler::start(content.as_str()),
+            #[cfg(all(feature = "lang_js", feature = "lang_html"))]
             Some("svelte") => SvelteFileHandler::start(content.as_str()),
             _ => None,
         }
@@ -647,6 +660,13 @@ fn fix_all(
     } else {
         match path.as_path().extension() {
             Some(extension) => {
+                #[cfg_attr(
+                    not(feature = "lang_js"),
+                    expect(
+                        unused_variables,
+                        reason = "Only the JS-based Astro, Vue and Svelte handlers read the input."
+                    )
+                )]
                 let input =
                     session
                         .workspace_for_request()
@@ -655,8 +675,11 @@ fn fix_all(
                             path: path.clone(),
                         })?;
                 match extension {
+                    #[cfg(feature = "lang_js")]
                     "astro" => AstroFileHandler::output(input.as_str(), fixed.code.as_str()),
+                    #[cfg(all(feature = "lang_js", feature = "lang_html"))]
                     "vue" => VueFileHandler::output(input.as_str(), fixed.code.as_str()),
+                    #[cfg(all(feature = "lang_js", feature = "lang_html"))]
                     "svelte" => SvelteFileHandler::output(input.as_str(), fixed.code.as_str()),
                     _ => fixed.code,
                 }
