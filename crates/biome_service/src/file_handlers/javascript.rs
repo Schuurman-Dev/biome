@@ -1,5 +1,14 @@
 mod go_to;
 
+#[cfg(all(
+    feature = "js_embeds",
+    any(feature = "lang_css", feature = "lang_graphql")
+))]
+use super::LintSnippetAnalyzer;
+#[cfg(all(feature = "js_embeds", feature = "lang_css"))]
+use super::css;
+#[cfg(all(feature = "js_embeds", feature = "lang_graphql"))]
+use super::graphql;
 use super::{
     AnalyzerCapabilities, AnalyzerVisitorBuilder, AnalyzerVisitorResult, CodeActionsParams,
     DebugCapabilities, DiagnosticsAndActionsParams, EditorCapabilities, EnabledForPath,
@@ -8,16 +17,17 @@ use super::{
     ProcessDiagnosticsAndActions, ProcessFixAll, ProcessLint, SearchCapabilities,
     UpdateSnippetsNodes, format_on_type_noop, matches_on_type_char,
 };
-#[cfg(feature = "js_embeds")]
-use super::{LintSnippetAnalyzer, css, graphql};
 use crate::configuration::to_analyzer_rules_by_indices;
 use crate::db::WorkspaceDb;
 #[cfg(feature = "js_embeds")]
 use crate::embed::EmbedContent;
+#[cfg(all(
+    feature = "js_embeds",
+    any(feature = "lang_css", feature = "lang_graphql")
+))]
+use crate::embed::js::GuestLanguage;
 #[cfg(feature = "js_embeds")]
-use crate::embed::js::{
-    EmbedCandidate, EmbedDetectorsRegistry, EmbedMatch, GuestLanguage, TemplateTagKind,
-};
+use crate::embed::js::{EmbedCandidate, EmbedDetectorsRegistry, EmbedMatch, TemplateTagKind};
 use crate::file_handlers::FixAllParams;
 use crate::file_handlers::javascript::go_to::{resolve_binding, resolve_definition};
 use crate::settings::{
@@ -44,15 +54,23 @@ use biome_configuration::javascript::{
     JsLinterConfiguration, JsLinterEnabled, JsParserConfiguration, JsxEverywhere, JsxRuntime,
     UnsafeParameterDecoratorsEnabled,
 };
-#[cfg(feature = "js_embeds")]
+#[cfg(all(feature = "js_embeds", feature = "lang_css"))]
 use biome_css_parser::parse_css_with_offset_and_cache;
-#[cfg(feature = "js_embeds")]
+#[cfg(all(feature = "js_embeds", feature = "lang_css"))]
 use biome_css_syntax::CssLanguage;
-#[cfg(feature = "js_embeds")]
+#[cfg(all(
+    feature = "js_embeds",
+    any(feature = "lang_css", feature = "lang_graphql")
+))]
 use biome_formatter::rowan::FormatElement;
 use biome_formatter::rowan::Printed;
 #[cfg(feature = "js_embeds")]
-use biome_formatter::rowan::{Document, Interned, LineMode, Tag};
+use biome_formatter::rowan::{Document, Interned};
+#[cfg(all(
+    feature = "js_embeds",
+    any(feature = "lang_css", feature = "lang_graphql")
+))]
+use biome_formatter::rowan::{LineMode, Tag};
 use biome_formatter::{
     AttributePosition, BracketSameLine, BracketSpacing, DelimiterSpacing, Expand, FormatError,
     IndentStyle, IndentWidth, LineEnding, LineWidth, QuoteStyle, TrailingNewline,
@@ -91,11 +109,11 @@ use biome_js_syntax::{
 };
 #[cfg(feature = "type_inference")]
 use biome_js_type_info::{RawTypeCollector, ScopeId, TypeData, TypeId, TypeStore};
-#[cfg(feature = "js_embeds")]
+#[cfg(all(feature = "js_embeds", feature = "lang_css"))]
 use biome_languages::CssFileSource;
 #[cfg(all(feature = "js_embeds", feature = "lang_graphql"))]
 use biome_languages::GraphqlFileSource;
-#[cfg(feature = "js_embeds")]
+#[cfg(all(feature = "js_embeds", feature = "lang_css"))]
 use biome_languages::css::CssEmbeddingKind;
 use biome_languages::{DocumentFileSource, JsFileSource, LanguageDb};
 #[cfg(feature = "module_graph")]
@@ -932,12 +950,23 @@ fn template_expression_to_template_tag(expr: &JsTemplateExpression) -> Option<Te
 /// (CSS, GraphQL), not the actual language type. This is because `AnyEmbeddedSnippet`
 /// erases the language via `AnyParse`, and the JS handler stores everything as
 /// `AnyEmbeddedSnippet::Js`. We preserve this behavior for compatibility.
-#[cfg(feature = "js_embeds")]
+#[cfg(all(
+    feature = "js_embeds",
+    any(feature = "lang_css", feature = "lang_graphql")
+))]
 fn parse_js_matched_embed(
     candidate: &EmbedCandidate,
     embed_match: &EmbedMatch,
     cache: &mut NodeCache,
+    #[cfg_attr(
+        not(feature = "lang_css"),
+        expect(unused_variables, reason = "Only CSS reads the parser settings.")
+    )]
     biome_path: &BiomePath,
+    #[cfg_attr(
+        not(feature = "lang_css"),
+        expect(unused_variables, reason = "Only CSS reads the parser settings.")
+    )]
     settings: &SettingsWithEditor,
 ) -> Option<(AnyParse, EmbedContent, DocumentFileSource)> {
     let content = candidate.content();
@@ -950,6 +979,7 @@ fn parse_js_matched_embed(
     };
 
     match embed_match.guest {
+        #[cfg(feature = "lang_css")]
         GuestLanguage::Css => {
             let embedding_kind = if matches!(candidate, EmbedCandidate::JsxStyleAttribute { .. }) {
                 CssEmbeddingKind::HtmlStyleAttribute
@@ -988,6 +1018,21 @@ fn parse_js_matched_embed(
             Some((parse.into(), content, file_source))
         }
     }
+}
+
+/// Without a guest language there is nothing to parse in a JavaScript template.
+#[cfg(all(
+    feature = "js_embeds",
+    not(any(feature = "lang_css", feature = "lang_graphql"))
+))]
+fn parse_js_matched_embed(
+    _candidate: &EmbedCandidate,
+    _embed_match: &EmbedMatch,
+    _cache: &mut NodeCache,
+    _biome_path: &BiomePath,
+    _settings: &SettingsWithEditor,
+) -> Option<(AnyParse, EmbedContent, DocumentFileSource)> {
+    None
 }
 
 // #[salsa::tracked]
@@ -1319,7 +1364,10 @@ pub(super) fn lint_with_inspector(
 
     #[cfg(feature = "js_embeds")]
     let mut snippets: Vec<Box<dyn SnippetAnalyzer<Never, Output = LintResults> + '_>> = Vec::new();
-    #[cfg(feature = "js_embeds")]
+    #[cfg(all(
+        feature = "js_embeds",
+        any(feature = "lang_css", feature = "lang_graphql")
+    ))]
     if inspector.is_none() {
         for snippet in params
             .parsed_source
@@ -1337,22 +1385,22 @@ pub(super) fn lint_with_inspector(
             };
             let offset = snippet.content_offset();
             let snippet_params = params.for_snippet(&snippet, language);
-            let analyzer = if language.to_css_file_source().is_some() {
-                LintSnippetAnalyzer::new(
+            let analyzer = match language {
+                #[cfg(feature = "lang_css")]
+                DocumentFileSource::Css(_) => LintSnippetAnalyzer::new(
                     snippet_params,
                     offset,
                     &biome_css_analyze::METADATA,
                     css::lint_with_inspector,
-                )
-            } else if language.to_graphql_file_source().is_some() {
-                LintSnippetAnalyzer::new(
+                ),
+                #[cfg(feature = "lang_graphql")]
+                DocumentFileSource::Graphql(_) => LintSnippetAnalyzer::new(
                     snippet_params,
                     offset,
                     &biome_graphql_analyze::METADATA,
                     graphql::lint_with_inspector,
-                )
-            } else {
-                continue;
+                ),
+                _ => continue,
             };
             snippets.push(Box::new(analyzer));
         }
@@ -1887,11 +1935,19 @@ struct EmbeddedSnippetFormatter<'a, 'settings> {
 
 #[cfg(feature = "js_embeds")]
 impl EmbeddedSnippetFormatter<'_, '_> {
+    /// Without a guest language no snippet is parsed, so none is formatted.
+    #[cfg(not(any(feature = "lang_css", feature = "lang_graphql")))]
+    fn format(&self, _range: TextRange) -> Option<Document> {
+        None
+    }
+
     /// Returns the formatted document of the snippet at `range`.
+    #[cfg(any(feature = "lang_css", feature = "lang_graphql"))]
     fn format(&self, range: TextRange) -> Option<Document> {
         let snippet = self.snippets.get(&range)?;
         let snippet_file_source = snippet.file_source(self.workspace_db)?;
         let document = match snippet_file_source {
+            #[cfg(feature = "lang_css")]
             DocumentFileSource::Css(_) => {
                 let css_options = super::css::resolve_format_options(
                     self.biome_path,
