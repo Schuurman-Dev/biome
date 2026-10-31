@@ -1842,7 +1842,7 @@ impl WorkspaceServerWithDb<'_> {
                 let before = diagnostics.len();
                 diagnostics.retain(|diagnostic| {
                     baselined_rule(diagnostic)
-                        .is_none_or(|rule| !outcome.suppressed.iter().any(|name| name == rule))
+                        .is_none_or(|rule| !outcome.suppressed.iter().any(|name| *name == rule))
                 });
                 errors -= before - diagnostics.len();
             }
@@ -4075,7 +4075,7 @@ impl Workspace for WorkspaceServerWithDb<'_> {
                 let outcome = baseline.baseline.evaluate(&key, &violations);
                 final_result.diagnostics.retain(|(diagnostic, _)| {
                     baselined_rule(diagnostic)
-                        .is_none_or(|rule| !outcome.suppressed.iter().any(|name| name == rule))
+                        .is_none_or(|rule| !outcome.suppressed.iter().any(|name| *name == rule))
                 });
             }
 

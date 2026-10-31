@@ -35,7 +35,7 @@ debugger;
 ```block
 flags/invalid ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  × `suspicious/notARule` isn't a lint rule. `--baseline-rule` expects a rule as `group/rule`, e.g. `suspicious/noExplicitAny`.
+  × `suspicious/notARule` isn't a lint rule. `--baseline-rule` expects a rule as `group/rule`, e.g. `suspicious/noExplicitAny`, or a plugin as `plugin/name`.
   
 
 

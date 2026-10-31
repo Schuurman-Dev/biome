@@ -1,6 +1,6 @@
 use crate::TestArgs as Args;
 use crate::run_cli_with_dyn_fs;
-use crate::snap_test::{CliRunResult, SnapshotPayload, assert_cli_snapshot};
+use crate::snap_test::{CliRunResult, SnapshotPayload, assert_cli_snapshot, message_to_string};
 use biome_console::BufferConsole;
 use biome_fs::TemporaryFs;
 
@@ -357,4 +357,128 @@ fn err_when_baseline_is_malformed() {
         console,
         result,
     ));
+}
+
+// Two GritQL plugins that report errors, so their violations can be told
+// apart in the baseline.
+const PLUGIN_CONFIG: &str = r#"{
+    "plugins": ["./no-debugger.grit", "./no-alert.grit"],
+    "linter": { "rules": { "preset": "none" } }
+}"#;
+
+const NO_DEBUGGER_PLUGIN: &str = r#"language js
+`debugger` as $d where { register_diagnostic(span=$d, message="No debugger.", severity="error") }
+"#;
+
+const NO_ALERT_PLUGIN: &str = r#"language js
+`alert($x)` as $a where { register_diagnostic(span=$a, message="No alert.", severity="error") }
+"#;
+
+fn setup_plugins(name: &str, files: &[(&str, &str)]) -> TemporaryFs {
+    let mut fs = TemporaryFs::new(name);
+    fs.create_file("biome.json", PLUGIN_CONFIG);
+    fs.create_file("no-debugger.grit", NO_DEBUGGER_PLUGIN);
+    fs.create_file("no-alert.grit", NO_ALERT_PLUGIN);
+    for (path, content) in files {
+        fs.create_file(path, content);
+    }
+    fs
+}
+
+#[test]
+fn baseline_records_plugin_violations_by_plugin() {
+    let fs = setup_plugins(
+        "baseline_baseline_records_plugin_violations_by_plugin",
+        &[("a.js", "debugger;\ndebugger;\nalert(1);\n")],
+    );
+    let mut console = BufferConsole::default();
+
+    let result = run(&fs, &mut console, &["lint", "--baseline"]);
+
+    assert!(result.is_ok(), "run_cli returned {result:?}");
+    assert_eq!(
+        read_baseline(&fs),
+        r#"{
+  "a.js": {
+    "lint/plugin/no-alert": {
+      "count": 1
+    },
+    "lint/plugin/no-debugger": {
+      "count": 2
+    }
+  }
+}
+"#
+    );
+}
+
+#[test]
+fn baseline_suppresses_recorded_plugin_violations() {
+    let fs = setup_plugins(
+        "baseline_baseline_suppresses_recorded_plugin_violations",
+        &[
+            ("a.js", "debugger;\nalert(1);\n"),
+            (
+                "biome-baseline.json",
+                r#"{ "a.js": { "lint/plugin/no-debugger": { "count": 1 } } }"#,
+            ),
+        ],
+    );
+    let mut console = BufferConsole::default();
+
+    let result = run(&fs, &mut console, &["lint"]);
+
+    // Only no-alert is reported: the entry for no-debugger doesn't cover it.
+    assert!(result.is_err(), "run_cli returned {result:?}");
+    let output: String = console.out_buffer.iter().map(message_to_string).collect();
+    assert!(output.contains("No alert."), "{output}");
+    assert!(!output.contains("No debugger."), "{output}");
+}
+
+#[test]
+fn baseline_reports_plugin_violations_over_count() {
+    let fs = setup_plugins(
+        "baseline_baseline_reports_plugin_violations_over_count",
+        &[
+            ("a.js", "debugger;\ndebugger;\n"),
+            (
+                "biome-baseline.json",
+                r#"{ "a.js": { "lint/plugin/no-debugger": { "count": 1 } } }"#,
+            ),
+        ],
+    );
+    let mut console = BufferConsole::default();
+
+    let result = run(&fs, &mut console, &["lint"]);
+
+    assert!(result.is_err(), "run_cli returned {result:?}");
+}
+
+#[test]
+fn baseline_rule_records_only_that_plugin() {
+    let fs = setup_plugins(
+        "baseline_baseline_rule_records_only_that_plugin",
+        &[("a.js", "debugger;\nalert(1);\n")],
+    );
+    let mut console = BufferConsole::default();
+
+    let result = run(
+        &fs,
+        &mut console,
+        &["lint", "--baseline-rule=plugin/no-debugger"],
+    );
+
+    // no-alert isn't recorded, so it still fails the run.
+    assert!(result.is_err(), "run_cli returned {result:?}");
+    assert_eq!(
+        read_baseline(&fs),
+        r#"{
+  "a.js": {
+    "lint/plugin/no-debugger": {
+      "count": 1
+    }
+  }
+}
+"#
+    );
 }

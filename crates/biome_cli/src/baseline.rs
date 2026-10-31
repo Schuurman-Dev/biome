@@ -109,13 +109,21 @@ impl BaselineOptions {
     }
 }
 
-/// Turns `group/rule` (or `lint/group/rule`) into the rule's diagnostic category.
+/// Turns `group/rule` (or `lint/group/rule`) into the rule's diagnostic
+/// category, and `plugin/name` into the name a plugin's violations are
+/// recorded under (`lint/plugin/name`).
 fn rule_category(rule: &str) -> Result<String, CliDiagnostic> {
     let name = format!("lint/{}", rule.strip_prefix("lint/").unwrap_or(rule));
+    if let Some(plugin) = name.strip_prefix("lint/plugin/")
+        && !plugin.is_empty()
+        && !plugin.contains('/')
+    {
+        return Ok(name);
+    }
     match name.parse::<&'static Category>() {
         Ok(category) if name.matches('/').count() == 2 => Ok(category.name().to_string()),
         _ => Err(CliDiagnostic::parse_error(format!(
-            "`{rule}` isn't a lint rule. `--baseline-rule` expects a rule as `group/rule`, e.g. `suspicious/noExplicitAny`."
+            "`{rule}` isn't a lint rule. `--baseline-rule` expects a rule as `group/rule`, e.g. `suspicious/noExplicitAny`, or a plugin as `plugin/name`."
         ))),
     }
 }
