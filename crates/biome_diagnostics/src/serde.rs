@@ -21,6 +21,8 @@ use crate::{
 #[cfg_attr(test, derive(Eq, PartialEq))]
 pub struct Diagnostic {
     category: Option<&'static Category>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    subcategory: Option<String>,
     severity: Severity,
     description: String,
     message: MarkupBuf,
@@ -38,6 +40,8 @@ impl Diagnostic {
 
     fn new_impl<D: super::Diagnostic + ?Sized>(diag: &D) -> Self {
         let category = diag.category();
+
+        let subcategory = diag.subcategory().map(str::to_string);
 
         let severity = diag.severity();
 
@@ -64,6 +68,7 @@ impl Diagnostic {
 
         Self {
             category,
+            subcategory,
             severity,
             description,
             message,
@@ -120,6 +125,10 @@ impl super::Diagnostic for Diagnostic {
 
     fn tags(&self) -> DiagnosticTags {
         self.tags
+    }
+
+    fn subcategory(&self) -> Option<&str> {
+        self.subcategory.as_deref()
     }
 
     fn source(&self) -> Option<&dyn super::Diagnostic> {

@@ -10,6 +10,9 @@ expression: plugin_diagnostics
                 link: None,
             },
         ),
+        subcategory: Some(
+            "plugin_a",
+        ),
         severity: Error,
         description: "Prefer object spread instead of `Object.assign()`",
         message: "Prefer object spread instead of `Object.assign()`",

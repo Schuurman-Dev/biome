@@ -103,6 +103,13 @@ pub trait Diagnostic: Debug {
         DiagnosticTags::empty()
     }
 
+    /// A name that narrows down the category when the category alone can't
+    /// tell diagnostics apart: every plugin reports under `plugin`, and this
+    /// is the name of the plugin that emitted the diagnostic.
+    fn subcategory(&self) -> Option<&str> {
+        None
+    }
+
     /// Similarly to the `source` method of the [std::error::Error] trait, this
     /// returns another diagnostic that's the logical "cause" for this issue.
     /// For instance, a "request failed" diagnostic may have been cause by a
