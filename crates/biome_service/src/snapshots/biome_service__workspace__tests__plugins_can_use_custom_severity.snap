@@ -10,6 +10,9 @@ expression: result.diagnostics
                 link: None,
             },
         ),
+        subcategory: Some(
+            "plugin",
+        ),
         severity: Warning,
         description: "Don't set explicit colors. Use `.color-*` classes instead.",
         message: "Don't set explicit colors. Use `.color-*` classes instead.",

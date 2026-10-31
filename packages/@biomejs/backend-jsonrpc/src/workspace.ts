@@ -13453,6 +13453,7 @@ export interface Diagnostic {
 	message: MarkupBuf;
 	severity: Severity;
 	source?: Diagnostic;
+	subcategory?: string;
 	tags: DiagnosticTags;
 	verboseAdvices: Advices;
 }

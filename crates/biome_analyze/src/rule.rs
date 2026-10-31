@@ -1659,6 +1659,10 @@ impl Diagnostic for RuleDiagnostic {
         self.tags
     }
 
+    fn subcategory(&self) -> Option<&str> {
+        self.subcategory.as_deref()
+    }
+
     fn location(&self) -> Location<'_> {
         Location::builder().span(&self.span).build()
     }

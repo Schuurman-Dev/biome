@@ -13,6 +13,7 @@
 //! - violations `<` the recorded count: the difference is reported as unused,
 //!   so the baseline only ever shrinks.
 
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 use biome_diagnostics::{Diagnostic, Severity};
@@ -208,9 +209,22 @@ pub fn count_violations<'a, D: Diagnostic + 'a>(
 }
 
 /// The rule a diagnostic counts against, if the baseline applies to it.
-pub fn baselined_rule(diagnostic: &impl Diagnostic) -> Option<&'static str> {
+///
+/// A plugin's diagnostics all have the category `plugin`, so they count
+/// against `lint/plugin/<name>`, the name a suppression comment uses for that
+/// plugin. A plugin diagnostic without a name isn't baselined.
+pub fn baselined_rule(diagnostic: &impl Diagnostic) -> Option<Cow<'_, str>> {
+    if diagnostic.severity() < Severity::Error {
+        return None;
+    }
     let category = diagnostic.category()?.name();
-    (category.starts_with("lint/") && diagnostic.severity() >= Severity::Error).then_some(category)
+    if category == "plugin" {
+        let plugin = diagnostic.subcategory()?;
+        return Some(Cow::Owned(format!("lint/plugin/{plugin}")));
+    }
+    category
+        .starts_with("lint/")
+        .then_some(Cow::Borrowed(category))
 }
 
 #[cfg(test)]

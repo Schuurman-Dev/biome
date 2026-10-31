@@ -10,6 +10,9 @@ expression: plugin_diagnostics
                 link: None,
             },
         ),
+        subcategory: Some(
+            "plugin_a",
+        ),
         severity: Error,
         description: "Prefer object spread instead of `Object.assign()`",
         message: "Prefer object spread instead of `Object.assign()`",
@@ -43,6 +46,9 @@ expression: plugin_diagnostics
                 name: "plugin",
                 link: None,
             },
+        ),
+        subcategory: Some(
+            "plugin_b",
         ),
         severity: Error,
         description: "Consider using `for...in` loop instead of `Object.keys()` for simple object iteration.",

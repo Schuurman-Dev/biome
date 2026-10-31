@@ -67,6 +67,11 @@ impl Error {
         self.as_diagnostic().tags()
     }
 
+    /// Calls [Diagnostic::subcategory] on the [Diagnostic] wrapped by this [Error].
+    pub fn subcategory(&self) -> Option<&str> {
+        self.as_diagnostic().subcategory()
+    }
+
     /// Calls [Diagnostic::source] on the [Diagnostic] wrapped by this [Error].
     pub fn source(&self) -> Option<&dyn Diagnostic> {
         self.as_diagnostic().source()

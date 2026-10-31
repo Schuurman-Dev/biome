@@ -10,6 +10,9 @@ expression: result.diagnostics
                 link: None,
             },
         ),
+        subcategory: Some(
+            "plugin",
+        ),
         severity: Error,
         description: "Prefer object spread instead of `Object.assign()`",
         message: "Prefer object spread instead of `Object.assign()`",
@@ -46,6 +49,7 @@ expression: result.diagnostics
                 ),
             },
         ),
+        subcategory: None,
         severity: Warning,
         description: "This variable a is unused.",
         message: "This variable "<Emphasis>"a"</Emphasis>" is unused.",

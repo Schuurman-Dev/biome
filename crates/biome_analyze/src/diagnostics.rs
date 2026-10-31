@@ -83,6 +83,13 @@ impl Diagnostic for AnalyzerDiagnostic {
         }
     }
 
+    fn subcategory(&self) -> Option<&str> {
+        match &self.kind {
+            DiagnosticKind::Rule(rule_diagnostic) => rule_diagnostic.subcategory.as_deref(),
+            DiagnosticKind::Raw(error) => error.subcategory(),
+        }
+    }
+
     fn location(&self) -> Location<'_> {
         let mut location = match &self.kind {
             DiagnosticKind::Rule(rule_diagnostic) => {

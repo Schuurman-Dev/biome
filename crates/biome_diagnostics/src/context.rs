@@ -314,6 +314,10 @@ mod internal {
             self.source.as_diagnostic().tags()
         }
 
+        fn subcategory(&self) -> Option<&str> {
+            self.source.as_diagnostic().subcategory()
+        }
+
         fn source(&self) -> Option<&dyn Diagnostic> {
             Some(self.source.as_dyn())
         }
@@ -409,6 +413,10 @@ mod internal {
         fn tags(&self) -> DiagnosticTags {
             self.source.as_diagnostic().tags()
         }
+
+        fn subcategory(&self) -> Option<&str> {
+            self.source.as_diagnostic().subcategory()
+        }
     }
 
     /// Diagnostic type returned by [super::DiagnosticExt::with_file_path],
@@ -475,6 +483,10 @@ mod internal {
         fn tags(&self) -> DiagnosticTags {
             self.source.as_diagnostic().tags()
         }
+
+        fn subcategory(&self) -> Option<&str> {
+            self.source.as_diagnostic().subcategory()
+        }
     }
 
     /// Diagnostic type returned by [super::DiagnosticExt::with_file_span],
@@ -529,6 +541,10 @@ mod internal {
 
         fn tags(&self) -> DiagnosticTags {
             self.source.as_diagnostic().tags()
+        }
+
+        fn subcategory(&self) -> Option<&str> {
+            self.source.as_diagnostic().subcategory()
         }
     }
 
@@ -604,6 +620,10 @@ mod internal {
 
         fn tags(&self) -> DiagnosticTags {
             self.source.as_diagnostic().tags()
+        }
+
+        fn subcategory(&self) -> Option<&str> {
+            self.source.as_diagnostic().subcategory()
         }
     }
 
@@ -717,6 +737,10 @@ mod internal {
         fn tags(&self) -> DiagnosticTags {
             self.source.as_diagnostic().tags() | self.tags
         }
+
+        fn subcategory(&self) -> Option<&str> {
+            self.source.as_diagnostic().subcategory()
+        }
     }
 
     /// Diagnostic type returned by [super::DiagnosticExt::with_severity],
@@ -766,6 +790,10 @@ mod internal {
 
         fn tags(&self) -> DiagnosticTags {
             self.source.as_diagnostic().tags()
+        }
+
+        fn subcategory(&self) -> Option<&str> {
+            self.source.as_diagnostic().subcategory()
         }
     }
 }
